@@ -1,0 +1,1328 @@
+---
+title: "Jail Data Cleaning"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '2'
+    toc_float: true
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      comment = NA)
+```
+
+```{r, include = FALSE}
+devtools::install_github("dan-j-laxman/dgen")
+library(tidyverse, dgen)
+```
+
+# Functions
+
+```{r}
+rec_5agree_5num_v1 <- function(var){
+  var1 = factor(var, 
+                levels = c("Strongly Disagree",
+                           "Disagree",
+                           "Mixed",
+                           "Agree",
+                           "Strongly Agree"),
+                labels = c(1:5))
+  var2 = as.numeric(var1)
+  return(var2)
+}
+
+rec_5agree_5num_v2 <- function(var){
+  var1 = factor(var, 
+                levels = c("Strongly Agree",
+                           "Agree",
+                           "Mixed",
+                           "Disagree",
+                           "Strongly Disagree"),
+                labels = c(0:4))
+  var2 = as.numeric(as.character(var1))
+  return(var2)
+}
+
+# rec_5agree_3num_v1 <- function(var){
+#   var1 = factor(var, 
+#                 levels = c("Strongly Disagree",
+#                            "Disagree",
+#                            "Neutral",
+#                            "Agree",
+#                            "Strongly Agree"),
+#                 labels = c(3, 3, 3, 4, 5))
+#   var2 = as.numeric(as.character(var1))
+#   return(var2)
+# }
+# 
+# 
+
+rec_5agree_3num_v1 <- function(var){
+  var1 = var
+  var2 = dplyr::case_when(var1 == "Strongly Disagree" ~ 3,
+                          var1 == "Disagree" ~ 3,
+                          var1 == "Neutral" ~ 3,
+                          var1 == "Agree" ~ 4,
+                          var1 == "Strongly Agree" ~ 5)
+  var3 = as.numeric(as.character(var2))
+  return(var3)
+}
+
+
+```
+
+
+# Importing Data
+
+```{r}
+Jail_raw <- foreign::read.spss("Data/PICK_Jail_Trimmed.sav",
+                               to.data.frame = TRUE )
+```
+
+```{r}
+dplyr::glimpse(Jail_raw)
+```
+
+
+# Cleaning Data
+
+```{r}
+
+Jail_clean <- Jail_raw %>% 
+    
+    dplyr::mutate(DivorcedYou, Div_Dich = if_else(DivorcedYou == 0, "Never Divorced", "Divorced")) %>%
+    
+    dplyr::mutate(Div_Dich = factor(Div_Dich)) %>%
+    
+    dplyr::mutate(Education_Old = Education) %>% 
+        
+        
+    dplyr::mutate(Education = dplyr::case_when(Education == "Elementary / middle" ~ "Less than High School Diploma/GED",
+                                               Education == "some high school" ~ "Less than High School Diploma/GED",
+                                               Education == "High school graduate or GED" ~ "High school graduate or GED",
+                                               Education == "Some college" ~ "Some college",
+                                               Education == "College or technical degree" ~ "College or technical degree",
+                                               Education == "College graduate degree (e.g. MS, PhD)" ~ "Graduate degree")) %>%
+    dplyr::mutate(Education = factor(Education,
+                                     levels = c("Less than High School Diploma/GED","High school graduate or GED",
+                                                "Some college",
+                                                "College or technical degree",
+                                                "Graduate degree"))) %>% 
+    
+    
+    dplyr::mutate(Education_collapsed = dplyr::case_when(Education == "Less than High School Diploma/GED" ~ "High school graduate/GED/No degree",
+                                               Education == "High school graduate or GED" ~ "High school graduate/GED/No degree",
+                                               Education == "Some college" ~ "Some college",
+                                               Education == "College or technical degree" ~ "College or technical degree",
+                                               Education == "Graduate degree" ~ "Graduate degree")) %>%
+    dplyr::mutate(Education_collapsed = factor(Education_collapsed,
+                                     levels = c("High school graduate/GED/No degree",
+                                                "Some college",
+                                                "College or technical degree",
+                                                "Graduate degree"))) %>% 
+    dplyr::mutate(Education_3cat = dplyr::case_when(Education == "Less than High School Diploma/GED" ~ "High school graduate/GED/No degree",
+                                               Education == "High school graduate or GED" ~ "High school graduate/GED/No degree",
+                                               Education == "Some college" ~ "Some college",
+                                               Education == "College or technical degree" ~ "Tech./College/Grad Degree",
+                                               Education == "Graduate degree" ~ "Tech./College/Grad Degree")) %>% 
+    
+    dplyr::mutate(Education_3cat = factor(Education_3cat,
+                                          levels = c("High school graduate/GED/No degree",
+                                                     "Some college",
+                                                     "Tech./College/Grad Degree"))) %>% 
+
+    dplyr::mutate(RelEd_Dich = dplyr::case_when(RelationshipEducation == "None" ~ "None",
+                                                                   RelationshipEducation == "Some" ~ "Some/A lot",
+                                                                   RelationshipEducation == "A lot" ~ "Some/A lot")) %>% 
+    dplyr::mutate(RelEd_Dich = factor(RelEd_Dich,
+                                                         levels = c("None", "Some/A lot"))) %>% 
+        
+ 
+       dplyr::mutate(FinancialWorry_cat = dplyr::case_when(FinancialWorry == "Never" ~ "Never, Hardly Ever",
+                                                        FinancialWorry == "Hardly ever" ~ "Never, Hardly Ever",
+                                                        FinancialWorry == "Once in a while" ~ "Once in a while",
+                                                        FinancialWorry == "Often" ~ "Often, Almost all the time",
+                                                        FinancialWorry == "Almost all the time" ~ "Often, Almost all the time")) %>% 
+    dplyr::mutate(FinancialWorry_cat = factor(FinancialWorry_cat,
+                                              levels = c("Never, Hardly Ever",
+                                                         "Once in a while",
+                                                         "Often, Almost all the time"))) %>% 
+    
+    
+    dplyr::mutate(`Income (10K)` = Income/10000) %>% 
+    dplyr::mutate(`Age (Decades)` = Age/10) %>% 
+    
+# Recoding outcomes at item-level: 5 Text responses to 5 numeric
+    
+###Unused Understanding Scale T1
+    
+    dplyr::mutate(TimeTogethernessTalk_T1.n = 
+                      rec_5agree_5num_v1(TimeTogethernessTalk_T1)) %>% 
+    dplyr::mutate(LoveEmotionalRational_T1.n =
+                      rec_5agree_5num_v1(LoveEmotionalRational_T1)) %>% 
+    dplyr::mutate(IdentifyImportantThings_T1.n =
+                      rec_5agree_5num_v1(IdentifyImportantThings_T1)) %>% 
+    dplyr::mutate(PatternsRepeat_T1.n = rec_5agree_5num_v1(PatternsRepeat_T1)) %>% 
+    dplyr::mutate(FamilyExperienceImpact_T1.n =
+                      rec_5agree_5num_v1(FamilyExperienceImpact_T1)) %>% 
+
+###PWB Scale (OQ-5)
+
+    dplyr::mutate(HappyPerson.n = rec_5agree_5num_v2(HappyPerson)) %>%
+    dplyr::mutate(SatisfiedLife.n = rec_5agree_5num_v2(SatisfiedLife)) %>%
+    dplyr::mutate(SatisfiedRelationship.n = rec_5agree_5num_v2(SatisfiedRelationship)) %>%
+    dplyr::mutate(FeelLovedWanted.n = rec_5agree_5num_v2(FeelLovedWanted)) %>%
+    dplyr::mutate(RelationshipsFullComplete.n = rec_5agree_5num_v2(RelationshipsFullComplete)) %>%
+
+###WAI Scale
+
+    dplyr::mutate(AppreciatesMe.n = rec_5agree_5num_v1(AppreciatesMe)) %>%
+    dplyr::mutate(CaresLikesMe.n = rec_5agree_5num_v1(CaresLikesMe)) %>%
+    dplyr::mutate(Trustfacilitator.n = rec_5agree_5num_v1(Trustfacilitator)) %>%
+    
+        
+        
+###Love is Enough T1
+    
+    dplyr::mutate(LoveSufficientMarriage_T1.n =
+                      rec_5agree_5num_v1(LoveSufficientMarriage_T1)) %>%
+    dplyr::mutate(LoveEnoughSustain_T1.n = rec_5agree_5num_v1(LoveEnoughSustain_T1)) %>% 
+    dplyr::mutate(FoolWalksAway_T1.n = rec_5agree_5num_v1(FoolWalksAway_T1)) %>% 
+   
+###Percieved Relationship Skills Pre
+    
+    dplyr::mutate(PaceRelationshipSafe.n = rec_5agree_5num_v1(PaceRelationshipSafe)) %>% 
+    dplyr::mutate(SpotWarningSigns.n = rec_5agree_5num_v1(SpotWarningSigns)) %>% 
+    dplyr::mutate(WeighProsCons.n = rec_5agree_5num_v1(WeighProsCons)) %>% 
+    
+###Control Scale T1
+    
+    dplyr::mutate(KeepPartnerDoing_T1.n = rec_5agree_5num_v1(KeepPartnerDoing_T1)) %>% 
+    dplyr::mutate(ForbidPartnerTalking_T1.n = rec_5agree_5num_v1(ForbidPartnerTalking_T1)) %>% 
+    dplyr::mutate(WouldNotStay_T1.n = rec_5agree_5num_v1(WouldNotStay_T1)) %>% 
+    
+    
+###Unused Understanding Scale T2
+    
+    dplyr::mutate(TimeTogethernessTalk_T2.n = 
+                      rec_5agree_5num_v1(TimeTogethernessTalk_T2)) %>% 
+    dplyr::mutate(LoveEmotionalRational_T2.n =
+                      rec_5agree_5num_v1(LoveEmotionalRational_T2)) %>% 
+    dplyr::mutate(IdentifyImportantThings_T2.n =
+                      rec_5agree_5num_v1(IdentifyImportantThings_T2)) %>% 
+    dplyr::mutate(PatternsRepeat_T2.n = rec_5agree_5num_v1(PatternsRepeat_T2)) %>% 
+    dplyr::mutate(FamilyExperienceImpact_T2.n =
+                      rec_5agree_5num_v1(FamilyExperienceImpact_T2)) %>% 
+   
+###Love is Enough T2
+    
+    dplyr::mutate(LoveSufficientMarriage_T2.n =
+                      rec_5agree_5num_v1(LoveSufficientMarriage_T2)) %>%
+    dplyr::mutate(LoveEnoughSustain_T2.n = rec_5agree_5num_v1(LoveEnoughSustain_T2)) %>% 
+    dplyr::mutate(FoolWalksAway_T2.n = rec_5agree_5num_v1(FoolWalksAway_T2)) %>% 
+    
+###Percieved Relationship Skills Before
+    
+    dplyr::mutate(PaceRelationshipSafe_Before.n =
+                      rec_5agree_5num_v1(PaceRelationshipSafe_Before)) %>% 
+    dplyr::mutate(SpotWarningSigns_Before.n = rec_5agree_5num_v1(SpotWarningSigns_Before)) %>% 
+    dplyr::mutate(WeighProsCons_Before.n = rec_5agree_5num_v1(WeighProsCons_Before)) %>% 
+    
+###Control Scale T2
+    
+    dplyr::mutate(KeepPartnerDoing_T2.n = rec_5agree_5num_v1(KeepPartnerDoing_T2)) %>% 
+    dplyr::mutate(ForbidPartnerTalking_T2.n = rec_5agree_5num_v1(ForbidPartnerTalking_T2)) %>% 
+    dplyr::mutate(WouldNotStay_T2.n = rec_5agree_5num_v1(WouldNotStay_T2)) %>% 
+    
+   
+###Percieved Relationship Skills After
+    
+    dplyr::mutate(PaceRelationshipSafe_After.n = rec_5agree_5num_v1(PaceRelationshipSafe_After)) %>% 
+    dplyr::mutate(SpotWarningSigns_After.n = rec_5agree_5num_v1(SpotWarningSigns_After)) %>% 
+    dplyr::mutate(WeighProsCons_After.n = rec_5agree_5num_v1(WeighProsCons_After)) %>% 
+
+
+
+# Creating Scales
+    ## 5-point Version
+
+###Personal Well Being - OQ-5 Summed
+    dplyr::mutate(PWB_Summed2 = dgen::row_sum(HappyPerson.n,
+                                                              SatisfiedLife.n,
+                                                              SatisfiedRelationship.n,
+                                             FeelLovedWanted.n,RelationshipsFullComplete.n,
+                                                              maxmiss_n = 0)) %>% 
+###Working Alliance Inventory - WAI Mean
+    dplyr::mutate(WAI = dgen::row_mean(AppreciatesMe.n,
+                                                              CaresLikesMe.n,
+                                                              Trustfacilitator.n,
+                                                              maxmiss_n = 0)) %>% 
+    
+    
+###Blind Love pre and post    
+    dplyr::mutate(BL_T1 = dgen::row_mean(LoveSufficientMarriage_T1.n,
+                                                      LoveEnoughSustain_T1.n,
+                                                      FoolWalksAway_T1.n,
+                                                      maxmiss_n = 1)) %>% 
+    
+    dplyr::mutate(BL_T2 = dgen::row_mean(LoveSufficientMarriage_T2.n,
+                                                      LoveEnoughSustain_T2.n,
+                                                      FoolWalksAway_T2.n,
+                                                      maxmiss_n = 1)) %>% 
+
+###Percieved Relationsihp Skills (VF_Scale) pre retro-pre and post    
+    dplyr::mutate(VF_T1 = dgen::row_mean(PaceRelationshipSafe.n,
+                                                            SpotWarningSigns.n,
+                                                            WeighProsCons.n,
+                                                            maxmiss_n = 1)) %>% 
+    
+    dplyr::mutate(VF_Before = dgen::row_mean(PaceRelationshipSafe_Before.n,
+                                                            SpotWarningSigns_Before.n,
+                                                            WeighProsCons_Before.n,
+                                                            maxmiss_n = 1)) %>% 
+    
+    dplyr::mutate(VF_After = dgen::row_mean(PaceRelationshipSafe_After.n,
+                                                            SpotWarningSigns_After.n,
+                                                            WeighProsCons_After.n,
+                                                            maxmiss_n = 1)) %>% 
+###Control Scale pre and post     
+    dplyr::mutate(Control_T1 = dgen::row_mean(KeepPartnerDoing_T1.n,
+                                                            ForbidPartnerTalking_T1.n,
+                                                            WouldNotStay_T1.n,
+                                                            maxmiss_n = 1)) %>% 
+        
+    dplyr::mutate(Control_T2 = dgen::row_mean(KeepPartnerDoing_T2.n,
+                                                            ForbidPartnerTalking_T2.n,
+                                                            WouldNotStay_T2.n,
+                                                            maxmiss_n = 1)) %>%   
+    
+    
+
+    dplyr::mutate(BL_Change = BL_T2 - BL_T1) %>% 
+    dplyr::mutate(VF_Change = VF_After - VF_T1) %>% 
+    dplyr::mutate(Control_Change = Control_T2 - Control_T1) %>% 
+
+#Analysis of which variables are missing to determine in analysis sample
+    
+    dplyr::mutate(miss.change = dgen::row_nmiss(BL_Change,
+                                                VF_Change,
+                                                Control_Change)) %>% 
+    
+    dplyr::mutate(miss.pre = dgen::row_nmiss(BL_T1, 
+                                               VF_T1, 
+                                               Control_T1)) %>%   
+    
+    dplyr::mutate(miss.post = dgen::row_nmiss(BL_T2, 
+                                               VF_After, 
+                                               Control_T2)) %>% 
+
+    dplyr::mutate(miss.scores = dgen::row_nmiss(BL_T1, 
+                                               VF_T1, 
+                                               Control_T1,
+                                                BL_T2, 
+                                               VF_After, 
+                                               Control_T2)) %>% 
+    
+    dplyr::mutate(at.least.one.score = ifelse(miss.scores == 6, NA, 1)) %>% 
+    
+    dplyr::mutate(at.least.one.change.score = ifelse(miss.change == 3, NA, 1)) %>% 
+        
+   
+     dplyr::mutate(in.analysis.sample1 = complete.cases(
+                at.least.one.change.score,
+                  Age, 
+                  Ethnicity, 
+                  Education,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Gender,
+                  PWB_Summed2,
+                  WAI,
+                  Div_Dich,
+                  Married_Dich
+        )) %>% 
+
+    
+
+        dplyr::mutate(in.analysis.sample2 = complete.cases(
+                at.least.one.change.score,
+                  Age, 
+                  Ethnicity, 
+                  Education,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Gender,
+                  #PWB_Summed2,
+                  WAI,
+                  Div_Dich,
+                  Married_Dich
+        )) %>% 
+    
+       
+    
+     dplyr::mutate(in.analysis.sample3 = complete.cases(
+                at.least.one.change.score,
+                  Age, 
+                  Ethnicity, 
+                  Education,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Gender,
+                  PWB_Summed2,
+                  WAI,
+                  #Div_Dich
+                  Married_Dich
+                
+        )) %>% 
+    
+            dplyr::mutate(Missing.preds = dgen::row_nmiss(Age,
+                  Ethnicity,
+                  Education,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Gender,
+                  PWB_Summed2,
+                  WAI,
+                  Div_Dich,
+                  Married_Dich))
+    
+```
+
+
+## Sample Sizes
+
+### Missing on predictors
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(Missing.preds)
+
+Jail_clean %>% 
+    furniture::tableF(miss.pre)
+
+Jail_clean %>% 
+    furniture::tableF(miss.scores)
+
+Jail_clean %>% 
+    furniture::tableF(miss.change)
+
+Jail_clean %>% 
+    furniture::tableF(miss.post)
+
+Jail_clean %>% 
+    furniture::tableF(Age)
+
+Jail_clean %>% 
+    furniture::tableF(Ethnicity)
+
+Jail_clean %>% 
+    furniture::tableF(Education)
+
+Jail_clean %>% 
+    furniture::tableF(Education_Old)
+
+Jail_clean %>% 
+    furniture::tableF(RelEd_Dich)
+
+Jail_clean %>% 
+    furniture::tableF(FinancialWorry_cat)
+
+Jail_clean %>% 
+    furniture::tableF(Gender)
+
+Jail_clean %>% 
+    furniture::tableF(PWB_Summed)
+
+Jail_clean %>% 
+    furniture::tableF(PWB_Summed2)
+
+Jail_clean %>% 
+    furniture::tableF(WAI)
+
+Jail_clean %>% 
+    furniture::tableF(Div_Dich)
+
+Jail_clean %>% 
+    furniture::tableF(Married_Dich)
+
+Jail_clean %>% 
+    furniture::tableF(at.least.one.change.score)
+
+```
+
+
+### in.analysis.sample1
+```{r}
+Jail_clean %>% 
+    furniture::tableF(in.analysis.sample1)
+```
+
+### in.analysis.sample2
+```{r}
+Jail_clean %>% 
+    furniture::tableF(in.analysis.sample2)
+```
+
+### in.analysis.sample3
+```{r}
+Jail_clean %>% 
+    furniture::tableF(in.analysis.sample3)
+```
+
+
+
+## Missing Data for Outcomes?                         
+
+
+
+### Change Scores using in.analysis.sample1 = TRUE
+
+```{r}
+Jail_clean %>% furniture::tableF(miss.change,
+                                 splitby = ~in.analysis.sample1)
+```
+
+### Scores using in.analysis.sample1 = TRUE
+
+* Unnecessarily restricts to sample having at least one pair of non-missing pre-post data.
+
+```{r}
+Jail_clean %>% furniture::tableF(miss.scores,
+                                 splitby = ~in.analysis.sample1)
+```
+
+### Scores using in.analysis.sample3 = TRUE
+
+```{r}
+Jail_clean %>% furniture::tableF(miss.scores,
+                                 splitby = ~in.analysis.sample3)
+```
+
+### Pre Scores using in.analysis.sample3 = TRUE
+
+
+```{r}
+Jail_clean %>% furniture::tableF(miss.pre,
+                                 splitby = ~in.analysis.sample3)
+```
+
+### Post Scores using in.analysis.sample3 = TRUE
+
+```{r}
+Jail_clean %>% furniture::tableF(miss.post,
+                                 splitby = ~in.analysis.sample3)
+```
+
+
+## Missing on Predictors
+
+### Using full sample with at least one change score
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(Missing.preds,
+                      splitby = ~in.analysis.sample1) 
+
+```
+
+### Using in.analysis.sample
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(Missing.preds,
+                      splitby = ~in.analysis.sample1) 
+
+```
+
+
+### Using in.analysis.sample3
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(Missing.preds,
+                      splitby = ~in.analysis.sample3) 
+
+```
+
+### Which variables are missing
+
+#### Missing only one: categorical
+
+* We can use Table 1 from the Furniture package to quickly identify who was missing for categorical variables.
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample3 == FALSE) %>% 
+    dplyr::filter(Missing.preds == 1) %>% 
+    dplyr::select(at.least.one.change.score,
+                  Age, 
+                  Ethnicity, 
+                  Education,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Gender,
+                  Div_Dich,
+                  Married_Dich) %>% 
+    
+    furniture::table1(na.rm = FALSE,
+                      digits = 2,
+                      #splitby = ~ in.analysis.sample1,
+                      test = TRUE) %>% pander::pander()
+
+
+```
+
+#### Missing only one: continuous
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == FALSE) %>% 
+    dplyr::filter(Missing.preds == 1) %>% 
+    furniture::tableF(`Age (Decades)`)
+
+```
+
+
+
+
+# Checking Coding Accuracy
+
+## Age
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(`Age (Decades)`)
+
+Jail_clean %>% 
+    furniture::tableF(Age)
+
+Jail_clean %>% 
+    furniture::tableF(Age_Groups)
+
+```
+
+## Ethnicity
+
+```{r}
+
+Jail_clean %>% 
+    furniture::tableF(Ethnicity)
+
+Jail_clean %>% 
+    furniture::tableF(Ethnicity_Dich)
+```
+
+## Education
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(Education_Old)
+
+Jail_clean %>% 
+    furniture::tableF(Education)
+
+Jail_clean %>% 
+    furniture::tableF(Education_collapsed)
+
+Jail_clean %>% 
+    furniture::tableF(Education_3cat)
+```
+
+## Income
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(Income)
+
+Jail_clean %>% 
+    furniture::tableF(`Income (10K)`)
+```
+
+
+## Gender
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(Gender)
+ 
+```
+
+
+## Divorce History
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(Div_Dich)
+ 
+```
+
+## Working Alliance Inventory
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(WAI)
+ 
+```
+
+## Financial Strain
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(FinancialWorry)
+
+Jail_clean %>% 
+    furniture::tableF(FinancialWorry_cat)
+```
+
+
+## Prior Relationship Education
+
+```{r}
+Jail_clean %>% 
+    furniture::tableF(RelationshipEducation)
+
+Jail_clean %>% 
+    furniture::tableF(RelEd_Dich)
+```
+
+
+
+# Reviewing Frequencies and Distributions, and Selecting Predictor Variable Versions
+
+## Age
+
+* Age
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Age, n = 40)
+```
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    ggplot2::ggplot(aes(x = Age)) + 
+    geom_histogram(aes(y=..density..),
+                   binwidth=3, 
+                   colour="black", 
+                   fill="white") + 
+    geom_density(alpha=.2, 
+                 fill="#FF6666") +
+    geom_vline(aes(xintercept=mean(Age, na.rm=T)),   # Ignore NA values for mean
+               color="red", 
+               linetype="dashed", 
+               size=1)
+
+
+
+    ```
+
+
+
+* Age (Decades)
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(`Age (Decades)`)
+```
+
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Age_Groups)
+```
+
+## Ethnicity
+
+* All Categories
+
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Ethnicity)
+```
+
+
+* Collapsing categories to two
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Ethnicity_Dich)
+```
+
+## Education
+
+* Collapsing Elementary and some High School
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Education)
+```
+
+* Collapsing Less than High School and High School/GED
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Education_collapsed)
+```
+
+* Collapsing Graduate Degree and College/Technical Degree
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Education_3cat)
+```
+
+
+
+## Income
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Income)
+```
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    ggplot2::ggplot(aes(x = Income)) + 
+    geom_histogram(aes(y=..density..),
+                   binwidth=3000,
+                   colour="black", 
+                   fill="white") + 
+    geom_density(alpha=.2, 
+                 fill="#FF6666") +
+    geom_vline(aes(xintercept=mean(Income, na.rm=T)),   # Ignore NA values for mean
+               color="red", 
+               linetype="dashed", 
+               size=1)
+```
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(`Income (10K)`)
+
+
+```
+
+
+
+## Gender
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Gender)
+```
+
+
+## Divorced
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Div_Dich)
+```
+
+## Financial Strain
+
+* All Categories
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(FinancialWorry)
+```
+
+* Collapsed
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(FinancialWorry_cat)
+```
+
+## Prior Relationship Education
+
+* 3 categories
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(RelationshipEducation)
+```
+
+* 2 categories
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(RelEd_Dich)
+
+```
+
+
+
+# Reviewing Frequencies of Individual Items from Outcomes for Recoding Accuracy and Distribution
+
+## OQ-10
+
+### Please mark your level of agreement...
+```{r}
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(HappyPerson) 
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(HappyPerson.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(SatisfiedLife)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(SatisfiedLife.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(SatisfiedRelationship)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(SatisfiedRelationship.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(FeelLovedWanted)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(FeelLovedWanted.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(RelationshipsFullComplete)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(RelationshipsFullComplete.n)
+
+```
+
+## WAI
+
+### Please mark your level of agreement...
+```{r}
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(AppreciatesMe) 
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(AppreciatesMe.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(CaresLikesMe)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(CaresLikesMe.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(Trustfacilitator)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(Trustfacilitator.n)
+
+```
+
+## Love is Enough
+
+### When in a relationship...
+```{r}
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(LoveSufficientMarriage_T1) 
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(LoveSufficientMarriage_T1.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(LoveEnoughSustain_T1)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(LoveEnoughSustain_T1.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(FoolWalksAway_T1)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(FoolWalksAway_T1.n)
+
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(LoveSufficientMarriage_T2) 
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(LoveSufficientMarriage_T2.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(LoveEnoughSustain_T2)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(LoveEnoughSustain_T2.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(FoolWalksAway_T2)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(FoolWalksAway_T2.n)
+
+```
+
+## VF Scale
+
+### Please mark your level of agreement...
+```{r}
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(PaceRelationshipSafe) 
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(PaceRelationshipSafe.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(SpotWarningSigns)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(SpotWarningSigns.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(WeighProsCons)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(WeighProsCons.n)
+
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(PaceRelationshipSafe_After) 
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(PaceRelationshipSafe_After.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(SpotWarningSigns_After)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(SpotWarningSigns_After.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(WeighProsCons_After)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(WeighProsCons_After.n)
+
+```
+
+## Control Scale
+
+### Please mark your level of agreement...  
+```{r}
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(KeepPartnerDoing_T1) 
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(KeepPartnerDoing_T1.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(ForbidPartnerTalking_T1)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(ForbidPartnerTalking_T1.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(WouldNotStay_T1)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(WouldNotStay_T1.n) 
+
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(KeepPartnerDoing_T2) 
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(KeepPartnerDoing_T2.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(ForbidPartnerTalking_T2)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(ForbidPartnerTalking_T2.n)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(WouldNotStay_T2)
+Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(WouldNotStay_T2.n) 
+
+```
+
+
+# Examining Outcomes Frequencies
+
+## VF Relationship Skills Change
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(VF_Change)
+```
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    ggplot2::ggplot(aes(x = VF_Change)) + 
+    geom_histogram(aes(y=..density..),
+                   binwidth=.33,
+                   colour="black", 
+                   fill="white") + 
+    geom_density(alpha=.2, 
+                 fill="#FF6666") +
+    geom_vline(aes(xintercept=mean(VF_Change, na.rm=T)),   # Ignore NA values for mean
+               color="red", 
+               linetype="dashed", 
+               size=1)
+```
+
+## Blind Love Change
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(BL_Change)
+```
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    ggplot2::ggplot(aes(x = BL_Change)) + 
+    geom_histogram(aes(y=..density..),
+                   binwidth=.25,
+                   colour="black", 
+                   fill="white") + 
+    geom_density(alpha=.2, 
+                 fill="#FF6666") +
+    geom_vline(aes(xintercept=mean(BL_Change, na.rm=T)),   # Ignore NA values for mean
+               color="red", 
+               linetype="dashed", 
+               size=1)
+```
+
+## Control Scale Change
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    furniture::tableF(Control_Change)
+```
+
+```{r}
+Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    ggplot2::ggplot(aes(x = Control_Change)) + 
+    geom_histogram(aes(y=..density..),
+                   binwidth=.25,
+                   colour="black", 
+                   fill="white") + 
+    geom_density(alpha=.2, 
+                 fill="#FF6666") +
+    geom_vline(aes(xintercept=mean(Control_Change, na.rm=T)),   # Ignore NA values for mean
+               color="red", 
+               linetype="dashed", 
+               size=1)
+```
+
+
+# Creating Long Dataset
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+Jail_clean_long <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnicity, 
+                  Ethnicity_Dich,
+                  Education_collapsed,
+                  Education_3cat,
+                  RelationshipEducation,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Gender,
+                  Div_Dich,
+                  BL_Change,
+                  VF_Change,
+                  Control_Change) %>% 
+    tidyr::gather(key = var,
+                  value = Change.Score,
+                  BL_Change,
+                  VF_Change,
+                  Control_Change) %>% 
+    dplyr::mutate_at(vars(ID, var), factor) %>% 
+    dplyr::arrange(ID, var) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+
+```{r}
+Jail_clean_long
+```
+
+# Creating Long Dataset with all available data on significant predictors
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on significant predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+Jail_clean_long2 <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample2 == TRUE) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnicity, 
+                  Ethnicity_Dich,
+                  Education_collapsed,
+                  Education_3cat,
+                  RelationshipEducation,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Gender,
+                  Div_Dich,
+                  BL_Change,
+                  VF_Change,
+                  Control_Change) %>% 
+    tidyr::gather(key = var,
+                  value = Change.Score,
+                  BL_Change,
+                  VF_Change,
+                  Control_Change) %>% 
+    dplyr::mutate_at(vars(ID, var), factor) %>% 
+    dplyr::arrange(ID, var) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+```{r}
+Jail_clean_long2
+```
+
+
+# Creating Long long Dataset for MLM over TIme
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+Jail_clean_longlong <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    # dplyr::rename(Healthy_Rel_SkillsPost = Healthy_Rel_Skills,
+    #               Partner_SelectionPost = Partner_Selection,
+    #               Past_Rel_BehavPost = Past_Rel_Behav,
+    #               Rel_Behav_AttitPost = Rel_Behav_Attit,
+    #               Healthy_Rel_SkillsRPre = Healthy_Rel_Skills_Before,
+    #               Partner_SelectionRPre = Partner_Selection_Before,
+    #               Past_Rel_BehavRPre = Past_Rel_Behav_Before,
+    #               Rel_Behav_AttitRPre = Rel_Behav_Attit_Before) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnicity, 
+                  Ethnicity_Dich,
+                  Education_collapsed,
+                  Education_3cat,
+                  RelationshipEducation,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Gender,
+                  Div_Dich,
+                  BL_T1,
+                  VF_T1,
+                  Control_T1,
+                  BL_T2,
+                  VF_After,
+                  Control_T2) %>% 
+    tidyr::gather(key = var,
+                  value = Score,
+                  BL_T1,
+                  VF_T1,
+                  Control_T1,
+                  BL_T2,
+                  VF_After,
+                  Control_T2) %>% 
+    tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
+    dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
+    dplyr::arrange(ID, Domain, Time) %>% 
+    dplyr::mutate(Time = factor(Time, 
+                                levels = c("Pre", "Post"))) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+
+```{r}
+Jail_clean_longlong
+```
+
+# Using Collapsed Reasonse Options: Creating Long long Dataset 2 for MLM over TIme
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+Jail_clean_longlong2 <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    # dplyr::rename(Healthy_Rel_SkillsPost = Healthy_Rel_Skills.3,
+    #               Partner_SelectionPost = Partner_Selection.3,
+    #               Past_Rel_BehavPost = Past_Rel_Behav.3,
+    #               Rel_Behav_AttitPost = Rel_Behav_Attit.3,
+    #               Healthy_Rel_SkillsRPre = Healthy_Rel_Skills_Before.3,
+    #               Partner_SelectionRPre = Partner_Selection_Before.3,
+    #               Past_Rel_BehavRPre = Past_Rel_Behav_Before.3,
+    #               Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnic_Code, 
+                  Race_Dichotomous,
+                  Education_collapsed,
+                  Education_3cat,
+                  Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Number_Attended,
+                  Dosage,
+                  Gender,
+                  Divorced_Dichotomous,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::gather(key = var,
+                  value = Score,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
+    dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
+    dplyr::arrange(ID, Domain, Time) %>% 
+    dplyr::mutate(Time = factor(Time, 
+                                levels = c("RPre", "Post"))) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+
+
+# Using Collapsed Reasonse Options: Creating Long long Dataset 2 for MLM over TIme
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+PICK_clean_longlong4 <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample4 == TRUE) %>% 
+    dplyr::rename(Healthy_Rel_SkillsPost = Healthy_Rel_Skills.3,
+                  Partner_SelectionPost = Partner_Selection.3,
+                  Past_Rel_BehavPost = Past_Rel_Behav.3,
+                  Rel_Behav_AttitPost = Rel_Behav_Attit.3,
+                  Healthy_Rel_SkillsRPre = Healthy_Rel_Skills_Before.3,
+                  Partner_SelectionRPre = Partner_Selection_Before.3,
+                  Past_Rel_BehavRPre = Past_Rel_Behav_Before.3,
+                  Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnic_Code, 
+                  Race_Dichotomous,
+                  Education_collapsed,
+                  Education_3cat,
+                  Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Number_Attended,
+                  Dosage,
+                  Gender,
+                  Divorced_Dichotomous,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::gather(key = var,
+                  value = Score,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
+    dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
+    dplyr::arrange(ID, Domain, Time) %>% 
+    dplyr::mutate(Time = factor(Time, 
+                                levels = c("RPre", "Post"))) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+
+
+# Saving data Set
+```{r}
+save(PICK_clean, file="./Data/PICK_clean.Rda")
+save(PICK_clean_long, file="./Data/PICK_clean_long.Rda")
+save(PICK_clean_long2, file="./Data/PICK_clean_long2.Rda")
+save(PICK_clean_longlong, file="./Data/PICK_clean_longlong.Rda")
+save(PICK_clean_longlong2, file="./Data/PICK_clean_longlong2.Rda")
+save(PICK_clean_longlong4, file="./Data/PICK_clean_longlong4.Rda")
+
+```
+
+
+

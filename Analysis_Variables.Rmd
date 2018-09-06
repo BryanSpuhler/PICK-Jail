@@ -1,0 +1,109 @@
+---
+title: "Analysis Variables"
+output:
+  pdf_document: default
+---
+
+## Demographics
+
+`Age (Decades)` Age Age_Groups
+
+Ethnicity Ethnic_Code Race_Dichotomous
+
+Education.Old Education Education_collapsed
+
+Income `Income (10K)` 
+
+Gender
+
+Divorced_Dichotomous
+
+FinancialWorry FinancialWorry_cat
+
+Prior_RshpEducation Prior_RshpEducation_collapsed
+
+Number_Attended Dosage
+
+
+
+
+## Outcome Variables
+
+### Perceived Knowledge About Relationship Skills 
+
+Healthy_Rel_Before Healthy_Rel_Before.n
+Communicate_Before Communicate_Before.n 
+ConflictManagement_Before ConflictManagement_Before.n
+
+Healthy_Rel Healthy_Rel.n 
+Communicate Communicate.n 
+ConflictManagement ConflictManagement.n 
+
+
+### Perceived Knowledge About Partner Selection
+
+RightPartner_Before RightPartner_Before.n 
+LearnPartner_Before LearnPartner_Before.n 
+PaceRelationship_Before PaceRelationship_Before.n 
+WarningSigns_Before WarningSigns_Before.n 
+
+RightPartner_Before.n, LearnPartner_Before.n, PaceRelationship_Before.N, WarningSigns_Before.n 
+
+RightPartner RightPartner.n 
+LearnPartner LearnPartner.n 
+PaceRelationship PaceRelationship.n 
+WarningSigns WarningSigns.n 
+
+RightPartner.n, LearnPartner.n, PaceRelationship.n, WarningSigns.n 
+
+
+### Perceived Importance of Knowledge About a Potential Partner's Relationships Patterns
+
+LearnedGrowingUp_Before LearnedGrowingUp_Before.n 
+PastRelationships_Before PastRelationships_Before.n 
+GetAlongParents_Before GetAlongParents_Before.n 
+FriendshipsAreLike_Before FriendshipsAreLike_Before.n 
+
+LearnedGrowingUp_Before.n, PastRelationships_Before.n, GetAlongParents_Before.n, FriendshipsAreLike_Before.n 
+
+LearnedGrowingUp LearnedGrowingUp.n 
+PastRelationships PastRelationships.n 
+GetAlongParents GetAlongParents.n 
+FriendshipsAreLike FriendshipsAreLike.n 
+
+LearnedGrowingUp.n, PastRelationships.n, GetAlongParents.n, FriendshipsAreLike.n 
+
+
+### Perceived Importance of Knowledge About a Potential Partner's Relationship Behavior and Attitudes
+
+Fights_Before Fights_Before.n 
+FeelingsHurt_Before FeelingsHurt_Before.n 
+RightandWrong_Before RightandWrong_Before.n 
+
+Fights_Before.n, FeelingsHurt_Before.n, RightandWrong_Before.n 
+
+Fights Fights.n 
+FeelingsHurt FeelingsHurt.n 
+RightandWrong RightandWrong.n  
+
+Fights.n, FeelingsHurt.n, RightandWrong.n  
+
+### Change Scores
+
+Healthy_Rel_Change 
+Communicate_Change
+ConflictManagement_Change
+
+RightPartner_Change
+LearnPartner_Change
+PaceRelationship_Change
+WarningSigns_Change
+
+LearnedGrowingUp_Change
+PastRelationships_Change
+GetAlongParents_Change
+FriendshipsAreLike_Change
+
+Fights_Change
+FeelingsHurt_Change
+RightandWrong_Change

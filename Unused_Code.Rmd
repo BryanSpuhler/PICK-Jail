@@ -1,0 +1,631 @@
+---
+title: "Unused Code"
+output: html_notebook
+---
+
+# Correlation table
+
+```{r}
+PICK_Corr <- PICK_clean %>% 
+    dplyr::select(Healthy_Rel_Skills_Change,
+                  Partner_Selection_Change,
+                  Past_Rel_Behav_Change,
+                  Rel_Behav_Attit_Change,
+                  Gender,
+                  # Ethnic_Code,
+                  # Education,
+                  # Age_Groups,
+                  # FinancialWorry_cat,
+                  Education_LT.HS, Education_Some, Education_College, Education_Grad,
+                  Age_Groups_30s, Age_Groups_40s, Age_Groups_50s,
+                  FinancialWorry_Once.awhile, FinancialWorry_Never.Hardly, 
+                  
+                  Divorced_Dichotomous, 
+                  # Number_Attended,
+                  Attended.Two, Attended.Three, RelEd.Some, RelEd.Alot
+
+                  Prior_RshpEducation) %>% 
+    psych::mixedCor(c = c("Healthy_Rel_Skills_Change",
+                           "Partner_Selection_Change",
+                           "Rel_Behav_Attit_Change"),
+                     p = c("Education", 
+                           "Age_Groups",
+                           "FinancialWorry_cat",
+                           "Number_Attended",
+                           "Prior_RshpEducation"),
+                     d = "Gender",
+                     method = "pearson")
+    
+round(PICK_Corr, digits = 2)   
+    
+PICK_Corr %>% 
+    psych::cor.plot(numbers = TRUE)
+```
+
+
+# Difference Score
+
+## Healty Relationship Skills
+
+* Try full dose vs. less than full dose
+
+
+###
+
+```{r}
+PICK_clean %>% 
+    furniture::tableX(round(Healthy_Rel_Skills, digits =1), round(Healthy_Rel_Skills_Before, digits = 1))
+```
+
+
+```{r}
+PICK_clean %>% 
+    furniture::table1(Healthy_Rel_Skills, Healthy_Rel_Skills_Before)
+```
+
+
+# Scatterplot pre post
+
+```{r}
+PICK_clean %>% 
+    ggplot2::ggplot(aes(x = Healthy_Rel_Skills_Before, y = Healthy_Rel_Skills)) +
+    geom_point(shape=1,
+               position=position_jitter(width=.15,height=.15)) +    # Use hollow circles
+    geom_smooth(method=lm)   # Add linear regression line 
+                             #  (by default includes 95% confidence region)
+
+
+```
+
+```{r}
+PICK_clean %>% 
+    ggplot2::ggplot(aes(x = Healthy_Rel_Skills_Change, y = Healthy_Rel_Skills)) +
+    geom_point(shape=1,
+               position=position_jitter(width=.15,height=.15)) +    # Use hollow circles
+    geom_smooth(method=lm)   # Add linear regression line 
+                             #  (by default includes 95% confidence region)
+
+```
+
+```{r}
+Rel_Skills<-lm(Healthy_Rel_Skills_Change ~ Gender + Ethnic_Code + Education + Age_Groups
+             + FinancialWorry_cat + Divorced_Dichotomous + Number_Attended + Prior_RshpEducation, 
+             data = PICK_clean, 
+             na.action = na.exclude)
+
+Rel_Skills.ControlPre<-lm(Healthy_Rel_Skills_Change ~ Healthy_Rel_Skills_Before + Gender + Ethnic_Code + Education + Age_Groups
+             + FinancialWorry_cat + Divorced_Dichotomous + Number_Attended + Prior_RshpEducation, 
+             data = PICK_clean, 
+             na.action = na.exclude)
+
+Rel_Skills.Ethn <-lm(Healthy_Rel_Skills_Change ~ Gender + Education +  Age_Groups
+             + FinancialWorry_cat + Divorced_Dichotomous + Number_Attended + Prior_RshpEducation, 
+             data = PICK_clean, 
+             na.action = na.exclude)
+
+Rel_Skills.Educ<-lm(Healthy_Rel_Skills_Change ~ Gender + Ethnic_Code + Age_Groups
+             + FinancialWorry_cat + Divorced_Dichotomous + Number_Attended + Prior_RshpEducation, 
+             data = PICK_clean, 
+             na.action = na.exclude)
+
+Rel_Skills.Age<-lm(Healthy_Rel_Skills_Change ~ Gender + Ethnic_Code + Education 
+             + FinancialWorry_cat + Divorced_Dichotomous + Number_Attended + Prior_RshpEducation, 
+             data = PICK_clean, 
+             na.action = na.exclude)
+
+Rel_Skills.FinWor<-lm(Healthy_Rel_Skills_Change ~ Gender + Ethnic_Code + Education + Age_Groups
+             + Divorced_Dichotomous + Number_Attended + Prior_RshpEducation, 
+             data = PICK_clean, 
+             na.action = na.exclude)
+
+Rel_Skills.attend <-lm(Healthy_Rel_Skills_Change ~ Gender + Ethnic_Code + Education + Age_Groups
+             + FinancialWorry_cat + Divorced_Dichotomous + Prior_RshpEducation, 
+             data = PICK_clean, 
+             na.action = na.exclude)
+
+Rel_Skills.reled <-lm(Healthy_Rel_Skills_Change ~ Gender + Ethnic_Code + Education + Age_Groups
+             + FinancialWorry_cat + Divorced_Dichotomous + Number_Attended, 
+             data = PICK_clean, 
+             na.action = na.exclude)
+
+```
+
+```{r}
+summary(Rel_Skills)
+
+```
+
+```{r}
+summary(Rel_Skills.ControlPre)
+```
+
+
+```{r}
+anova(Rel_Skills.Ethn, Rel_Skills)
+
+
+```
+
+```{r}
+anova(Rel_Skills.Educ, Rel_Skills)
+
+
+```
+
+```{r}
+anova(Rel_Skills.Age, Rel_Skills)
+
+
+```
+
+```{r}
+anova(Rel_Skills.FinWor, Rel_Skills)
+
+
+```
+
+```{r}
+anova(Rel_Skills.attend, Rel_Skills)
+
+
+```
+
+
+```{r}
+anova(Rel_Skills.reled, Rel_Skills)
+
+
+```
+
+
+
+```{r}
+PICK_clean %>% 
+    furniture::tableF(Rel.Skills.Change.Group)
+```
+
+
+```{r}
+PICK_clean %>% 
+    furniture::tableF(Healthy_Rel_Skills_Before)
+
+PICK_clean %>% 
+    furniture::tableF(Healthy_Rel_Skills)
+
+PICK_clean %>% 
+    furniture::tableF(Healthy_Rel_Skills_Change)
+
+
+PICK_clean %>% 
+    furniture::tableX(Healthy_Rel_Skills_Before)
+
+
+
+```
+
+
+```{r}
+plot(Rel_Skills, which = c(1:6))
+```
+
+```{r}
+car::vif(Rel_Skills)
+
+
+
+```
+
+
+
+```{r}
+PICK_clean %>% 
+    furniture::tableF(Education_LT.HS)
+
+PICK_clean %>% 
+    furniture::tableF(Education_Some)
+
+PICK_clean %>% 
+    furniture::tableF(Education_College)
+
+PICK_clean %>% 
+    furniture::tableF(Education_LT.Grad)
+
+PICK_clean %>% 
+    furniture::tableF(Age_Groups_30s)
+
+PICK_clean %>% 
+    furniture::tableF(Age_Groups_40s)
+
+PICK_clean %>% 
+    furniture::tableF(Age_Groups_50s)
+
+
+PICK_clean %>% 
+    furniture::tableF(FinancialWorry_Once.awhile)
+
+PICK_clean %>% 
+    furniture::tableF(FinancialWorry_Never.Hardly)
+
+
+
+PICK_clean %>% 
+    furniture::tableF(Attended.Two)
+
+PICK_clean %>% 
+    furniture::tableF(Attended.Three)
+
+
+
+
+PICK_clean %>% 
+    furniture::tableF(RelEd.Some)
+
+PICK_clean %>% 
+    furniture::tableF(RelEd.Alot)
+
+```
+
+
+
+# Dummies
+
+```{r}
+    # Dummies
+    dplyr::mutate(Education_LT.HS = dplyr::case_when(Education == "High school graduate or GED" ~ 0,
+                                                     Education == "Less than High School Diploma/GED" ~ 1,
+                                                     Education == "Some college" ~ 0,
+                                                     Education == "College or technical degree" ~ 0,
+                                                     Education == "Graduate degree" ~ 0)) %>% 
+    dplyr::mutate(Education_Some = dplyr::case_when(Education == "High school graduate or GED" ~ 0,
+                                                     Education == "Less than High School Diploma/GED" ~ 0,
+                                                     Education == "Some college" ~ 1,
+                                                     Education == "College or technical degree" ~ 0,
+                                                     Education == "Graduate degree" ~ 0)) %>% 
+    dplyr::mutate(Education_College = dplyr::case_when(Education == "High school graduate or GED" ~ 0,
+                                                     Education == "Less than High School Diploma/GED" ~ 0,
+                                                     Education == "Some college" ~ 0,
+                                                     Education == "College or technical degree" ~ 1,
+                                                     Education == "Graduate degree" ~ 0)) %>% 
+    dplyr::mutate(Education_Grad = dplyr::case_when(Education == "High school graduate or GED" ~ 0,
+                                                     Education == "Less than High School Diploma/GED" ~ 0,
+                                                     Education == "Some college" ~ 0,
+                                                     Education == "College or technical degree" ~ 0,
+                                                     Education == "Graduate degree" ~ 1)) %>% 
+
+    
+    
+    dplyr::mutate(Age_Groups_30s = dplyr::case_when(Age_Groups == "18-30" ~ 0,
+                                                     Age_Groups == "31-40" ~ 1,
+                                                     Age_Groups == "41-50" ~ 0,
+                                                     Age_Groups == "51+" ~ 0)) %>%  
+    dplyr::mutate(Age_Groups_40s = dplyr::case_when(Age_Groups == "18-30" ~ 0,
+                                                     Age_Groups == "31-40" ~ 0,
+                                                     Age_Groups == "41-50" ~ 1,
+                                                     Age_Groups == "51+" ~ 0)) %>%  
+    dplyr::mutate(Age_Groups_50s = dplyr::case_when(Age_Groups == "18-30" ~ 0,
+                                                     Age_Groups == "31-40" ~ 0,
+                                                     Age_Groups == "41-50" ~ 0,
+                                                     Age_Groups == "51+" ~ 1)) %>% 
+    
+    dplyr::mutate(FinancialWorry_Once.awhile = dplyr::case_when(FinancialWorry_cat == "Often/ Almost All the Time" ~ 0,
+                                                     FinancialWorry_cat == "Once in a While" ~ 1,
+                                                     FinancialWorry_cat == "Never/ Hardly Ever" ~ 0)) %>% 
+    dplyr::mutate(FinancialWorry_Never.Hardly = dplyr::case_when(FinancialWorry_cat == "Often/ Almost All the Time" ~ 0,
+                                                     FinancialWorry_cat == "Once in a While" ~ 0,
+                                                     FinancialWorry_cat == "Never/ Hardly Ever" ~ 1)) %>% 
+    dplyr::mutate(Attended.Two = dplyr::case_when(Number_Attended == "One Session" ~ 0,
+                                                     Number_Attended == "Two Sessions" ~ 1,
+                                                     Number_Attended == "Three Sessions" ~ 0)) %>%   
+     dplyr::mutate(Attended.Three = dplyr::case_when(Number_Attended == "One Session" ~ 0,
+                                                     Number_Attended == "Two Sessions" ~ 0,
+                                                     Number_Attended == "Three Sessions" ~ 1)) %>% 
+     dplyr::mutate(RelEd.Some = dplyr::case_when(Prior_RshpEducation == "None" ~ 0,
+                                                     Prior_RshpEducation == "Some" ~ 1,
+                                                     Prior_RshpEducation == "A lot" ~ 0)) %>% 
+     dplyr::mutate(RelEd.Alot = dplyr::case_when(Prior_RshpEducation == "None" ~ 0,
+                                                     Prior_RshpEducation == "Some" ~ 0,
+                                                     Prior_RshpEducation == "A lot" ~ 1)) %>% 
+    dplyr::mutate(Rel.Skills.Change.Group = dplyr::case_when(Healthy_Rel_Skills_Before < 4 & Healthy_Rel_Skills < 4 ~ "Low-Low",
+                                                             Healthy_Rel_Skills_Before < 4 & Healthy_Rel_Skills >= 4 ~ "Low-High",
+                                                             Healthy_Rel_Skills_Before >= 4 & Healthy_Rel_Skills >= 4 ~ "High-High",
+                                                             Healthy_Rel_Skills_Before >= 4 & Healthy_Rel_Skills < 4 ~ "High-Low")) %>% 
+  
+```
+
+```{r}
+aov_gains2 <- afex::aov_4(score ~ Gender + (var|ID),
+            data = PICK_clean_long)
+
+summary(aov_gains2)
+```
+
+
+```{r}
+aov_gains2$Anova
+```
+
+```{r}
+mlm.change.5 %>% 
+    emmeans::emmip(Gender~ var, CIs = TRUE)
+```
+
+
+
+# Correlations Matrix
+
+```{r}
+    corrplot::corrplot.mixed(cor(PICK_clean_outcome_pre_corr),
+                             upper = "square",
+                             tl.pos= "lt",
+                             tl.cex = .5,
+                             number.cex= 0.50,
+                             title = "Retrospective Pre-Program Correlations",
+                             mar=c(1,0,5,0),
+                             xpd=TRUE)
+
+```
+
+
+
+## Omega
+
+#### Omega
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(RightPartner_Before.n, LearnPartner_Before.n, 
+                  PaceRelationship_Before.n, WarningSigns_Before.n) %>% 
+    psych::omega()
+```
+
+
+```{r}
+# specify the model
+RPRE.skills.model <- ' Healthy_Rel_Skills_Before =~ Healthy_Rel_Before.n + Communicate_Before.n + 
+                                                    ConflictManagement_Before.n '
+
+# fit the model
+RPRE.skills.model.fit <- lavaan::cfa(RPRE.skills.model, 
+                              data=(PICK_clean %>% 
+                                        dplyr::filter(in.analysis.sample == TRUE)),
+                              estimator = "MLR")
+
+# display summary output
+lavaan::summary(RPRE.skills.model.fit, fit.measures=TRUE, standardized=TRUE )
+
+psych::omegaFromSem(RPRE.skills.model.fit)
+
+```
+
+
+
+#### Configural  Invariant
+
+```{r, echo=FALSE}
+# specify the model
+Rcomb.model.c.con <- ' 
+
+# Latent common factor definitions
+
+HRS.rpre =~ Healthy_Rel_Before.3n + Communicate_Before.3n + 
+            ConflictManagement_Before.3n
+HRS.post =~ Healthy_Rel.3n + Communicate.3n +   
+            ConflictManagement.3n
+                 
+PS.rpre  =~ RightPartner_Before.3n + LearnPartner_Before.3n + 
+            PaceRelationship_Before.3n +  WarningSigns_Before.3n
+PS.post  =~ RightPartner.3n + LearnPartner.3n + 
+            PaceRelationship.3n +  WarningSigns.3n
+
+PRB.rpre =~ LearnedGrowingUp_Before.3n + PastRelationships_Before.3n + 
+            GetAlongParents_Before.3n + FriendshipsAreLike_Before.3n
+PRB.post =~ LearnedGrowingUp.3n + PastRelationships.3n + 
+            GetAlongParents.3n + FriendshipsAreLike.3n
+
+RBA.rpre =~ Fights_Before.3n + FeelingsHurt_Before.3n + RightandWrong_Before.3n 
+RBA.post =~ Fights.3n + FeelingsHurt.3n + RightandWrong.3n 
+
+# Latent common factor variances and covariances
+
+HRS.rpre ~~ HRS.rpre + HRS.post + PS.rpre + PS.post + PRB.rpre + PRB.post + RBA.rpre + RBA.post
+HRS.post ~~ HRS.post + PS.rpre + PS.post + PRB.rpre + PRB.post + RBA.rpre + RBA.post
+PS.rpre  ~~ PS.rpre + PS.post + PRB.rpre + PRB.post + RBA.rpre + RBA.post
+PS.post  ~~ PS.post + PRB.rpre + PRB.post + RBA.rpre + RBA.post
+PRB.rpre ~~ PRB.rpre + PRB.post + RBA.rpre + RBA.post
+PRB.post ~~ PRB.post + RBA.rpre + RBA.post
+RBA.rpre ~~ RBA.rpre + RBA.post
+RBA.post ~~ RBA.post
+
+# Latent common factor means
+# Fix T1 common factor mean to zero
+
+HRS.rpre ~ 0*1
+# Freely estimate T2-T4 common factor means
+HRS.post ~ 1 
+PS.rpre ~ 1 
+PS.post ~ 1 
+PRB.rpre ~ 1 
+PRB.post ~ 1 
+RBA.rpre ~ 1 
+RBA.post ~ 1 
+
+# Thresholds
+# t1 and t2 after * represent the first and second 
+#    thresholds of an indicator, respectively
+# Threshold parameters that are freely estimated have labels VaTbtc,
+#   with a representing indicator number, b representing time,
+#   c representing ordering of the threshold (first, second)
+# Threshold parameters that are constrained to be equal over time
+#   are given the labels Vatc, with a representing indicator number, 
+#   c representing ordering of the threshold (first, second)
+
+Healthy_Rel_Before.3n | V1t1*t1 + V1t2*t2 
+Healthy_Rel.3n        | V1t1*t1 + V1t2*t2 
+
+Communicate_Before.3n | V2t1*t1 + V2T1t2*t2 
+Communicate.3n        | V2t1*t1 + V2T2t2*t2 
+
+ConflictManagement_Before.3n | V3t1*t1 + V3T1t2*t2 
+ConflictManagement.3n        | V3t1*t1 + V3T2t2*t2 
+
+
+
+RightPartner_Before.3n | V4t1*t1 + V4t2*t2 
+RightPartner.3n        | V4t1*t1 + V4t2*t2 
+
+LearnPartner_Before.3n | V5t1*t1 + V5T1t2*t2 
+LearnPartner.3n        | V5t1*t1 + V5T2t2*t2 
+
+PaceRelationship_Before.3n | V6t1*t1 + V6T1t2*t2 
+PaceRelationship.3n        | V6t1*t1 + V6T2t2*t2 
+
+WarningSigns_Before.3n | V7t1*t1 + V7T1t2*t2 
+WarningSigns.3n        | V7t1*t1 + V7T2t2*t2 
+
+
+
+LearnedGrowingUp_Before.3n | V8t1*t1 + V8t2*t2 
+LearnedGrowingUp.3n        | V8t1*t1 + V8t2*t2 
+
+PastRelationships_Before.3n | V9t1*t1 + V9T1t2*t2 
+PastRelationships.3n        | V9t1*t1 + V9T2t2*t2 
+
+GetAlongParents_Before.3n | V10t1*t1 + V10T1t2*t2 
+GetAlongParents.3n        | V10t1*t1 + V10T2t2*t2 
+
+FriendshipsAreLike_Before.3n | V11t1*t1 + V11T1t2*t2 
+FriendshipsAreLike.3n        | V11t1*t1 + V11T2t2*t2 
+
+ 
+
+Fights_Before.3n | V12t1*t1 + V12t2*t2 
+Fights.3n        | V12t1*t1 + V12t2*t2 
+
+FeelingsHurt_Before.3n | V13t1*t1 + V13T1t2*t2 
+FeelingsHurt.3n        | V13t1*t1 + V13T2t2*t2 
+
+RightandWrong_Before.3n | V14t1*t1 + V14T1t2*t2 
+RightandWrong.3n        | V14t1*t1 + V14T2t2*t2 
+
+ 
+# Intercepts
+# Fix all intercepts to zero
+
+Healthy_Rel_Before.3n + Communicate_Before.3n + ConflictManagement_Before.3n ~ 0*1
+Healthy_Rel.3n + Communicate.3n + ConflictManagement.3n ~ 0*1
+                 
+RightPartner_Before.3n + LearnPartner_Before.3n + PaceRelationship_Before.3n +  WarningSigns_Before.3n ~ 0*1
+RightPartner.3n + LearnPartner.3n + PaceRelationship.3n +  WarningSigns.3n ~ 0*1
+
+LearnedGrowingUp_Before.3n + PastRelationships_Before.3n + GetAlongParents_Before.3n + FriendshipsAreLike_Before.3n ~ 0*1
+LearnedGrowingUp.3n + PastRelationships.3n + GetAlongParents.3n + FriendshipsAreLike.3n ~ 0*1
+
+Fights_Before.3n + FeelingsHurt_Before.3n + RightandWrong_Before.3n  ~ 0*1
+Fights.3n + FeelingsHurt.3n + RightandWrong.3n  ~ 0*1
+
+
+# Unique variances
+# Fix unique variances at T1 to 1.00
+
+Healthy_Rel_Before.3n  ~~ 1*Healthy_Rel_Before.3n
+Communicate_Before.3n  ~~ 1*Communicate_Before.3n
+ConflictManagement_Before.3n ~~ 1*ConflictManagement_Before.3n
+
+RightPartner_Before.3n ~~ NA*RightPartner_Before.3n
+LearnPartner_Before.3n ~~ NA*LearnPartner_Before.3n
+PaceRelationship_Before.3n ~~ NA*PaceRelationship_Before.3n
+WarningSigns_Before.3n ~~ NA*WarningSigns_Before.3n
+
+LearnedGrowingUp_Before.3n ~~ NA*LearnedGrowingUp_Before.3n
+PastRelationships_Before.3n ~~ NA*PastRelationships_Before.3n
+GetAlongParents_Before.3n ~~ NA*GetAlongParents_Before.3n
+FriendshipsAreLike_Before.3n ~~ NA*FriendshipsAreLike_Before.3n
+
+Fights_Before.3n ~~ NA*Fights_Before.3n
+FeelingsHurt_Before.3n ~~ NA*FeelingsHurt_Before.3n
+RightandWrong_Before.3n  ~~ NA*RightandWrong_Before.3n
+
+# lavaan constrains all indicator unique variances to 1.00 by default
+# Free this constraint at T2
+
+Healthy_Rel.3n  ~~ NA*Healthy_Rel.3n
+Communicate.3n  ~~ NA*Communicate.3n
+ConflictManagement.3n ~~ NA*ConflictManagement.3n
+
+RightPartner.3n ~~ NA*RightPartner.3n
+LearnPartner.3n ~~ NA*LearnPartner.3n
+PaceRelationship.3n ~~ NA*PaceRelationship.3n
+WarningSigns.3n ~~ NA*WarningSigns.3n
+
+LearnedGrowingUp.3n ~~ NA*LearnedGrowingUp.3n
+PastRelationships.3n ~~ NA*PastRelationships.3n
+GetAlongParents.3n ~~ NA*GetAlongParents.3n
+FriendshipsAreLike.3n ~~ NA*FriendshipsAreLike.3n
+
+Fights.3n ~~ NA*Fights.3n
+FeelingsHurt.3n ~~ NA*FeelingsHurt.3n
+RightandWrong.3n  ~~ NA*RightandWrong.3n
+
+
+# Lagged unique factor covariances
+
+Healthy_Rel_Before.3n  ~~ Healthy_Rel.3n
+Communicate_Before.3n  ~~ Communicate.3n
+ConflictManagement_Before.3n ~~ ConflictManagement.3n
+
+RightPartner_Before.3n ~~ RightPartner.3n
+LearnPartner_Before.3n ~~LearnPartner.3n
+PaceRelationship_Before.3n ~~ PaceRelationship.3n
+WarningSigns_Before.3n ~~ WarningSigns.3n
+
+LearnedGrowingUp_Before.3n ~~ LearnedGrowingUp.3n
+PastRelationships_Before.3n ~~ PastRelationships.3n
+GetAlongParents_Before.3n ~~ GetAlongParents.3n
+FriendshipsAreLike_Before.3n ~~ FriendshipsAreLike.3n
+
+Fights_Before.3n ~~ Fights.3n
+FeelingsHurt_Before.3n ~~ FeelingsHurt.3n
+RightandWrong_Before.3n  ~~ RightandWrong.3n
+
+
+
+
+'
+
+# fit the model
+Fit.Rcomb.model.c.con <- lavaan::cfa(Rcomb.model.c.con, 
+                              data=(PICK_clean %>% 
+                                        dplyr::filter(in.analysis.sample3 == TRUE)),
+                              estimator = "WLSMV",
+                              ordered = c("Healthy_Rel_Before.3n" , "Communicate_Before.3n" ,
+                                          "ConflictManagement_Before.3n",
+                                          "RightPartner_Before.3n", "LearnPartner_Before.3n",
+                                          "PaceRelationship_Before.3n",  "WarningSigns_Before.3n",
+                                          "LearnedGrowingUp_Before.3n", "PastRelationships_Before.3n",
+                                          "GetAlongParents_Before.3n", "FriendshipsAreLike_Before.3n",
+                                          "Fights_Before.3n", "FeelingsHurt_Before.3n",
+                                          "Healthy_Rel.3n" , "Communicate.3n" ,
+                                          "ConflictManagement.3n",
+                                          "RightPartner.3n", "LearnPartner.3n",
+                                          "PaceRelationship.3n",  "WarningSigns.3n",
+                                          "LearnedGrowingUp.3n", "PastRelationships.3n",
+                                          "GetAlongParents.3n", "FriendshipsAreLike.3n",
+                                          "Fights.3n", "FeelingsHurt.3n"),
+                               parameterization = "theta")
+
+# display summary output
+lavaan::summary(Fit.Rcomb.model.c.con, fit.measures=TRUE, standardized=TRUE )
+```
+
+
+#### Modification Indices
+
+```{r, echo = FALSE}
+lavaan::modificationindices(Fit.Rcomb.model.c.con) %>% 
+    data.frame() %>% 
+    dplyr::filter(mi>10) %>% 
+    dplyr::arrange(-mi)
+    
+```
+

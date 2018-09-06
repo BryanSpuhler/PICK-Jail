@@ -1,0 +1,74 @@
+---
+title: "PICK Pilot Mixed Methods Evaluation"
+subtitle: "Revised Quantitative Analyses and Results Summary"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  word_document:
+    reference_docx: R-Markdown-word-styles-reference-05.docx
+    fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+load("Data/environment.Rdata")
+
+
+```
+
+# Textual Summary
+
+# Methods 
+
+
+To evaluate the program quantitatively, we examined the impact of the program (i.e., post vs. retrospective pre-program assessments) on the four outcomes (Skills, Partner Selection, Relationship Patterns, Behavior and Attitudes) described above. We used a linear mixed effects model instead of a repeated measures MANOVA in order to assess interactions between multiple covariates, both continuous and categorical. Furthermore, mixed effects models do not assume homogeneity of variance. Specifically, we used a random intercept multilevel regression model (RI MLM) in which scores on the four outcomes at two assessments (retrospective-pre and post-program) were nested within participant. 
+
+First, we tested whether the program (i.e., post vs. retrospective pre-program assessment) had a significant effect on the four outcomes (all main effects were tested simultaneously) even after controlling for demographic covariates. In other words, did participants experience the hypothesized gains on the four outcomes? Second, we tested whether the effect of the program differed for each outcome by including interactions with outcome level. Did participants gain more on some outcomes than for others? Third, we tested whether the effect of the program varied by dosage and prior exposure to relationship education by including interactions with dosage and prior exposure. Did participants gain more if they attended more courses or had not previously received relationship eduation? Finally, we examined whether the effect of the program varied by age, race/ethnicity, education level, financial worry, gender, and divorce history by adding additional interactions one-at-a-time. Significant interactions were retained in the final model. To reduce the risk of Type I error in detecting the effects of demographic variables, a Bonferroni correction was used. Significance of predictors was tested using the likelihood ratio test following recommendations of Hox, Moerbeek, & van de Schoot (2018). Analyses were conducted using the lme4 package (Bates, Machler, Boker, & Walker, 2015) in R version 3.5.0 (R Core Team, 2018) and RStudio version 1.1.453 (RStudio Team, 2018). Full details and results of quantitative analyses are available upon request. 
+
+
+
+## Notes on Methods Section 
+
+* Add short descriptors to the factor descriptions used above to the measurement section.
+
+
+A series of nested multilevel regression models (RI MLM) were compared and indicated that, on average, participants gained in knowledge and skills ($\beta$ = `r round(Average_Gain_b,2)`, $\chi^2$ = `r format_chi(compar.time$Chisq[2])`, *df* = `r compar.time$"Chi Df"[2]`, `r pvaluer_anova(compar.time$"Pr(>Chisq)"[2])`). The effect of the program varied by outcome ($\chi^2$ = `r format_chi(compar.domain.int$Chisq[2])`, *df* = `r compar.domain.int$"Chi Df"[2]`, `r pvaluer_anova(compar.domain.int$"Pr(>Chisq)"[2])`), prior exposure to relationship education ($\chi^2$ = `r format_chi(compar.exp.int$Chisq[2])`, *df* = `r compar.exp.int$"Chi Df"[2]`, `r pvaluer_anova(compar.exp.int$"Pr(>Chisq)"[2])`), dosage ($\chi^2$ = `r format_chi(compar.dos.int$Chisq[2])`, *df* = `r compar.dos.int$"Chi Df"[2]`, `r pvaluer_anova(compar.dos.int$"Pr(>Chisq)"[2])`), and race/ethnicity ($\chi^2$ = `r format_chi(compar.race.time.int$Chisq[2])`, *df* = `r compar.race.time.int$"Chi Df"[2]`, `r pvaluer_anova(compar.race.time.int$"Pr(>Chisq)"[2])`)
+
+
+The average gains in knowledge and skills for each outcome were as follows. Significance of regression coefficients was tested using the lmerTest package (Kuznetsova, Brockhoff, & Christensen, 2017) using Kenward-Roger's method. Each covariate was held at its reference group -- i.e., briefly, in terms of significant covariates: a Caucasian participant who attended only one session and had not previously received relationship education: Skills, $\beta$ = `r formatC(hrs.coef$Estimate, format = "f", digits = 3)`, *t* = `r formatC(hrs.coef$t.value, format = "f", digits = 3)`, *df* = `r formatC(hrs.coef$df, format = "f", digits = 3)`, `r pvaluer(hrs.coef$Pr...t..)`; Partner Selection, $\beta$ = `r formatC(ps.coef$Estimate,format = "f", digits = 3)`, *t* = `r formatC(ps.coef$t.value, format = "f", digits = 3)`, *df* = `r formatC(ps.coef$df, format = "f", digits = 3)`, `r pvaluer(ps.coef$Pr...t..)`; Relationship Patterns, $\beta$ = `r formatC(prb.coef$Estimate,format = "f", digits = 3)`, *t* = `r formatC(prb.coef$t.value, format = "f", digits = 3)`, *df* = `r formatC(prb.coef$df, format = "f", digits = 3)`, `r pvaluer(prb.coef$Pr...t..)`; and Behavior and Attitudes, $\beta$ = `r formatC(rba.coef$Estimate,format = "f", digits = 3)`, *t* = `r formatC(rba.coef$t.value, format = "f", digits = 3)`, *df* = `r formatC(rba.coef$df, format = "f", digits = 3)`, `r pvaluer(rba.coef$Pr...t..)`. The program had a significant effect on all outcomes even after controlling for age, ethnicity, prior relationship education, the number of classes attended (dosage), education level, financial worry, gender, and divorce history. 
+
+Our analyses also tested whether the effect of the program varied by prior experience with relationship education, dosage, and (using a Bonferroni correction) demographic covariates. All interactions are shown in Figure 1. Participants who had previously received relationship education through courses, counseling, workshops, etc. gained less than those who had not ($\beta$ = `r formatC(timeXprior$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXprior$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXprior$df, format = "f", digits = 3)`, `r pvaluer(timeXprior$Pr...t..)`). Gains were greater for participants who attended three sessions compared to only one ($\beta$ = `r formatC(timeXthreesess$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXthreesess$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXthreesess$df, format = "f", digits = 3)`, `r pvaluer(timeXthreesess$Pr...t..)`). Gains did not differ for participants who attended two sessions compared to only one ($\beta$ = `r formatC(timeXtwosess$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXtwosess$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXtwosess$df, format = "f", digits = 3)`, `r pvaluer(timeXtwosess$Pr...t..)`). 
+
+The only demographic covariate that significantly moderated the effect of the program was race/ethnicity. There was no difference in the effect of the program for participants who identified as Hispanic/Latino than for participants who identified as Caucasian ($\beta$ = `r formatC(timeXhisp$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXhisp$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXhisp$df, format = "f", digits = 3)`, `r pvaluer(timeXhisp$Pr...t..)`). However, the program had a diminished effect for participants who identified as another race/ethnicity than for participants who identified as Caucasian ($\beta$ = `r formatC(timeXother$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXother$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXother$df, format = "f", digits = 3)`, `r pvaluer(timeXother$Pr...t..)`). 
+
+## Limitations
+
+* "What he/she learned from his/her family when growing up" appears to load with the item, "How he/she fights when angry", "How he/she reacts when my feelings are hurt", and "What he/she believes about right and wrong" instead of the factors it is currently associated with.
+
+* If not already included, the extremely high level of skewness ("ceiling effect") at the item level for most items at post should be acknowledged. The residuals of the model look fine, indicating that the skewness at the construct level is not an issue. However, this doesn't negate the skewness at the item level and that it limits how much information the measure gives us and how much growth indivduals could experience.
+
+* Might consider reporting congeneric reliabilty, which is more appropriate for skewed data, in addiiton to Cronbach's alpha.
+
+# References
+
+Bates, D., Machler, M., Boker, B., & Walker, S. (2015). Fitting Linear Mixed-Effects Models Using lme4. *Journal of Statistical Software, 67*(1), 1 - 48. doi: 10.18637/jss.v067.i01
+
+Hox, J. J., Moerbeek, M., & van de Schoot, R. (2018). *Multilevel analysis: Techniques and applications.* New York: Routledge.
+
+Kuznetsova, A., Brockhoff, P. B., & Christensen, R. H. B. (2017). lmerTest Package: Tests in Linear Mixed Effects Models. *Journal of Statistical Software, 82*(13). https://doi.org/10.18637/jss.v082.i13
+
+R Core Team (2018). *R: A language and environment for statistical computing.* R Foundation for Statistical Computing, Vienna, Austria. URL: http://www.R-project.org/.
+
+RStudio Team (2018). *RStudio: Integrated Development for R.* RStudio, Inc., Boston, MA. URL: http://www.rstudio.com/.
+
+## Notes on Results Section 
+
+* Make sure methods section says "Another race" rather than "Other"
+
+## Figure 1. Effect of Program by Outcome, Prior Relationship Education, Dosage, and Race/Ethnicity
+
+
+
+###### `r knitr::include_graphics("Figs/Interactions.png")`
+
+*Note.* Outcome 1: Relationship Behavior and Attitudes, Outcome 2: Past Relationship Behavior, Outcome 3: Partner Selection, Outcome 4: Healthy Relationship Skills, Racial/Ethnic Group 1: Another Race/Ethnicity, Racial/Ethnic Group 2: Caucasian, and Racial/Ethnic Group 3: Hispanic/Latino.

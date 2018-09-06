@@ -1,0 +1,2527 @@
+---
+title: "PICK Pilot Mixed Methods Evaluation"
+subtitle: "Revised Quantitative Analyses and Results: Dropping Non-Significant Predictors"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  pdf_document: 
+    toc: true
+    toc_depth: 4
+    number_sections: true
+csl: apa.csl
+fontsize: 11pt
+mainfont: Century
+
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+
+library(tidyverse)
+library(furniture)
+library(corrplot)
+library("lmerTest")
+
+load(file="./Data/PICK_clean_long.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean_longlong.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean_longlong2.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean_long2.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean.fscore_long.Rda", verbose = FALSE)
+
+
+
+## tableM
+
+tableM = function(.data, ..., resp.opts = NULL){
+  
+  ## Iniital objects
+  .call      = match.call()
+  list_vars  = eval(substitute(list(...)), .data)
+  df         = do.call("data.frame", list_vars)
+  df         = data.frame(df)
+  names(df)  = paste(substitute(list(...)))[-1]
+
+  final_list = list()
+  
+  ## Creating counts
+  for(i in names(df)){
+    
+      var = df[i]
+      ## Summary statistics
+      Freq = table(var, useNA="ifany")
+
+      ## If there is missing, add a blank line below the valids
+      if (any(is.na(var))){
+          names(Freq)[length(names(Freq))] = "Missing_Missing_Missing.Missing"
+          final = data.frame("Var"     = names(Freq),
+                             "Freq"    = as.character(Freq))
+          names(final) = c("Value", i) 
+          final[] = lapply(final, as.character)
+      } else {
+          final = data.frame("Var"     = names(Freq),
+                             "Freq"    = as.character(Freq))
+          names(final) = c("Value", i) 
+          final[] = lapply(final, as.character)
+      }
+  
+  final_list[[i]] = final
+  
+  }
+
+  
+  ## Join all count tables
+  table.part0 <- purrr::reduce(final_list, dplyr::full_join, by = "Value")
+  
+  ## Replace NAs with 0.
+  table.part0[is.na(table.part0)] <- 0
+  ## Make counts numeric, but not labels
+  table.part0[, c(2:ncol(table.part0))] <- sapply(table.part0[, c(2:ncol(table.part0))],
+                                                  as.numeric)
+  ## Removes row of missing values
+  table.part1 <- table.part0[which(table.part0$Value != "Missing_Missing_Missing.Missing"),]
+  ## Adds total (if no missing)/valid total (if missing; name changed below)
+  table.part1 <- janitor::adorn_totals(table.part1, where = "row")
+  
+  # Different approaches are used based on whether there are missing data.      
+  if('Missing_Missing_Missing.Missing' %in% table.part0$Value){
+  
+    # Changes "Total" to "Valid Total" in table.part1
+    table.part1[nrow(table.part1),1] <- "Valid Total"
+    # Caclulates total including missing
+    table.part2 = janitor::adorn_totals(table.part0, where = "row")
+    # Select "Missing" row and "Total" row
+    table.part2 <-  table.part2[which(table.part2$Value == "Missing_Missing_Missing.Missing" | 
+                                         table.part2$Value == "Total"),]
+    # Rename "Missing" row
+    table.part2[1,1] <- "Missing"
+    # Combine table components
+    table.final = rbind(table.part1, "---", table.part2)
+    
+  } else {
+      
+    table.final = table.part1
+    
+  }
+
+  ## Adjusting response options (changing order). Must be spelled correctly. Can include extra levels.  
+  if (!is.null(resp.opts)){ 
+    if ('Missing' %in% table.final$Value){
+      
+      rownames(table.final) = table.final$Value
+      table.final = table.final[c(resp.opts, "Valid Total", "---", "Missing", "Total"), ]
+    
+    } else {
+      
+      rownames(table.final) = table.final$Value
+      table.final = table.final[c(resp.opts, "Total"), ]
+  
+    }
+  }
+  
+  rownames(table.final) <- NULL
+  table.final
+    
+}
+
+# Source: https://stackoverflow.com/questions/12643391/how-to-remove-leading-0-in-a-numeric-r-variable
+
+
+# Format a number to have 3 decimal places, but no 0 before decimal.
+
+numformat_no0 <- function(val) { sub("^(-?)0.", "\\1.", sprintf("%.3f", val)) }
+
+
+# Format a number to have 3 decimal places
+
+numformat <- function(val) {  noquote(formatC(val, format = "f", digits = 3)) }
+
+
+numformat2 <- function(val) {  noquote(formatC(val, format = "f", digits = 2)) }
+
+# Format p-value with no 0 before decimal.
+
+pvaluer <- function(p) {
+    if(p < .001){
+        p_formatted = "*p* < .001"
+    }
+    else{
+        p_formatted = paste0("*p* = ", numformat_no0(p))
+    }
+    
+return(p_formatted)    
+    }
+
+# Format p-value resulting from ANOVA
+
+pvaluer_anova <- function(p){
+
+    p1 = noquote(formatC(p, format = "f", digits = 3))
+    
+    if(p1 < .001){
+        p_formatted = "*p* < .001"
+    }
+    else{
+        p_formatted = paste0("*p* = ", numformat_no0(as.numeric(p1)))
+    }
+    
+return(p_formatted)            
+    
+}
+
+
+
+# Format Chi-square
+format_chi = function(chi){
+    
+    formatted_chi = noquote(formatC(chi, format = "f", digits = 3))
+    return(formatted_chi)
+    }
+
+
+
+```
+\newpage
+# Revised MLM Analyses
+
+## Analytic Plan
+
+* Step 1: Test whether Time (i.e., Post Assessment compared to Retrospective Pre-Program Assessment) has a significant effect on the 4 outcomes (tested simultaneously) even after controlling for demographic covariates.
+
+    * Compare 
+        * Model 1 with only demographic variables.
+        * Model 2 with demographic variables and Time 
+
+* Step 2: If Step 1 is significant, test whether the effect of time varies significantly by outcome (controlling for demographic covariates).
+
+    * Compare 
+        * Model 3 with demographic variables, Time, and Outcome Level
+        * Model 4 with demographic variables, Time, Outcome Level, and an interaction between Time and Outcome Level.
+        
+        
+* Step 3: Test whether the effect of Time varies by Dosage and Prior Exposure to relationship education.
+        * Model 5 with demographic variables, Time, Outcome Level, an interaction between Time and Outcome Level, and Dosage and Prior Exposure
+        * Model 6 with demographic variables, Time, Outcome Level, an interaction between Time and Outcome Level, Dosage and Prior Exposure,and an interaction between Time and Dosage and Time and Prior Exposure.
+        
+* Step 4: Test whether the effect of Time varies by demographic variables using a Bonferroni correction.
+
+    * Model 6 with demographic variables, Time, Outcome Level, an interaction between Time and Outcome Level, and, finally, Dosage and Exposure and their respective interactions with Time.
+    
+    * Model 7.X with all predictors from Model 6 and an interaction between Time and a given demographic covariate.
+
+
+
+
+## Calculating ICC
+
+* If ICC is low enough, multilevel modeling is not needed.
+
+
+\newpage
+
+### Variance Between Respondents at Retrospective Pre-Assessment 
+
+* Indicates how much variance in retrospective pre-scores is between respondents vs. within respondents (i.e., across outcomes). About a quarter of the variance is between respondents. So retrospective pre-scores vary both between respondents and within respondents (across outcomes).
+
+
+
+
+```{r, echo = FALSE}
+mlm.ICCbaseline.RE <- lme4::lmer(Score ~ Time + (1|ID),
+                                  data = PICK_clean_longlong2,
+                                  REML = TRUE)
+
+
+sjstats::icc(mlm.ICCbaseline.RE)
+
+```
+
+
+### Variance Between Respondents *within domain (outcome level)* at Retrospective Pre-Assessment
+
+* Indicates how much variance in retrospective pre-scores is between respondents vs. within respondents (i.e., across outcomes). About a quarter of the variance is between respondents. So retrospective pre-scores vary both between respondents and within respondents (across outcomes).
+
+### ICC in a Specific Domain
+
+* Indicates how much variance in retrospective pre-scores is between respondents vs. within respondents within a specific domain (i.e., outcome). About a quarter of the variance is between respondents. So retrospective pre-scores vary both between respondents and within respondents.
+
+```{r, echo = FALSE}
+
+mlm.ICCbaselineXdomain.RE <- lme4::lmer(Score ~ Time*Domain + (1|ID),
+                                  data = PICK_clean_longlong2,
+                                  REML = TRUE)
+
+
+sjstats::icc(mlm.ICCbaselineXdomain.RE)
+
+```
+
+## Step 1: Test whether Time (i.e., Post Assessment compared to Retrospective Pre-Program Assessment) has a significant effect on the 4 outcomes (tested simultaneously) even after controlling for demographic covariates.
+
+* Compare 
+
+    * Model 0 with no predictors
+    
+    * Model 1 with only demographic variables.
+        
+    * Model 2 with demographic variables and Time 
+
+```{r, include=FALSE}
+Model.2.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             
+                             
+                             
+                             Time +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+print(summary(Model.2.ML), digits = 3)
+
+```
+
+```{r, include=FALSE}
+Model.1.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+print(summary(Model.1.ML), digits = 3)
+
+```
+
+
+```{r, include=FALSE}
+Model.0.ML <- lme4::lmer(Score ~ 1 + (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+print(summary(Model.0.ML), digits = 3)
+
+```
+
+
+### Model Comparison
+
+#### Effect of Demographics
+
+```{r, include=FALSE}
+compar.dems <- anova(Model.0.ML, Model.1.ML)
+
+compar.dems
+```
+
+The effect of demographic covariates was not significant ($\chi^2$ = `r format_chi(compar.dems$Chisq[2])`, *df* = `r compar.dems$"Chi Df"[2]`, `r pvaluer_anova(compar.dems$"Pr(>Chisq)"[2])`).
+
+#### Effect of Time Controlling for Demographics
+
+```{r, include=FALSE}
+compar.time <- anova(Model.1.ML, Model.2.ML)
+
+compar.time
+```
+
+The effect of Time was significant ($\chi^2$ = `r format_chi(compar.time$Chisq[2])`, *df* = `r compar.time$"Chi Df"[2]`, `r pvaluer_anova(compar.time$"Pr(>Chisq)"[2])`), indicating that on average respondents increased in knowledge and skills.
+
+\newpage
+
+## Step 2: If Step 1 is significant, test whether the effect of time varies significantly by outcome (controlling for demographic covariates).
+
+* Compare 
+    
+    * Model 3 with demographic variables, Time, and Outcome Level
+    
+    * Model 4 with demographic variables, Time, Outcome Level, and an interaction between Time and Outcome Level.
+
+```{r, echo=FALSE}
+Model.4.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+print(summary(Model.4.ML), digits = 3)
+
+```
+
+```{r, include=FALSE}
+Model.3.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + 
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+print(summary(Model.3.ML), digits = 3)
+
+```
+
+
+### Model Comparison
+
+#### Effect of Outcome Level
+
+```{r, include = FALSE}
+compar.domain <- anova(Model.2.ML, Model.3.ML)
+
+compar.domain
+```
+
+The effect of outcomes level was significant ($\chi^2$ = `r format_chi(compar.domain$Chisq[2])`, *df* = `r compar.domain$"Chi Df"[2]`, `r pvaluer_anova(compar.domain$"Pr(>Chisq)"[2])`), indicating that the domains (averaged jointly across Retrospective Pre and Post) different significantly.
+
+#### Effect of Time X Domain
+
+```{r, include = FALSE}
+compar.domain.int <- anova(Model.3.ML, Model.4.ML)
+
+compar.domain.int
+```
+
+The effect of Time varied significantly by outcome level ($\chi^2$ = `r format_chi(compar.domain.int$Chisq[2])`, *df* = `r compar.domain.int$"Chi Df"[2]`, `r pvaluer_anova(compar.domain.int$"Pr(>Chisq)"[2])`), indicating that the average effect of program participation varied by outcome. 
+
+
+#### Effect of Outcome Level and Time X Outcome Level
+
+```{r, include = FALSE}
+compar.domain.and.int <- anova(Model.2.ML, Model.4.ML)
+
+compar.domain.and.int
+```
+
+Accounting for outcome level and allowing the effect of time to vary by outcome level significantly improved model fit ($\chi^2$ = `r format_chi(compar.domain.and.int$Chisq[2])`, *df* = `r compar.domain.and.int$"Chi Df"[2]`, `r pvaluer_anova(compar.domain.and.int$"Pr(>Chisq)"[2])`).
+
+
+\newpage
+
+### Plotting the Effect of Time X Outcome "Level" 
+
+* **Plot indicates a different pattern of significant differences at pre and post?**
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("Domain", "Time"),
+                mod = Model.4.ML) %>% 
+    data.frame %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("RPre",
+                                           "Post"),
+                                labels = c("Retrospective Pre",
+                                           "Post"))) %>% 
+    dplyr::mutate(Domain = factor(Domain,
+                               levels = c("Healthy_Rel_Skills",
+                                          "Partner_Selection",
+                                          "Past_Rel_Behav",
+                                          "Rel_Behav_Attit"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(Domain = factor(Domain,
+                               levels = c("Rel. Beh. and Attitudes",
+                                          "Past Rel. Beh.",
+                                          "Partner Selection",
+                                          "Healthy Rel. Skills"))) %>% 
+    dplyr::mutate(`Estimated Score` = fit) %>%
+    ggplot(aes(x = Time,
+               y = `Estimated Score`,
+               color = Domain)) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = lower,
+                      ymax = upper,
+                      linetype = "dotted",
+                      color = Domain),
+                  width = .2) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = `Estimated Score` - se,
+                      ymax = `Estimated Score` + se,
+                      linetype = "solid",
+                      color = Domain),
+                  width = .2) +
+    ylim(2,5) +
+    geom_point(position=position_dodge(width=0.2)) +
+    geom_line(position=position_dodge(width=0.2),
+              aes(x = Time,
+               y = `Estimated Score`,
+               group = Domain))+
+    guides(linetype = FALSE) +
+    ggtitle("Effect of Program Participation by Outcome Level") + 
+    theme_bw()
+```
+
+\newpage
+
+### Determining which Outcomes are Significantly Different at Each Timepoint
+
+* Any pair that does not share a Group Number is significantly different (see http://www.tandfonline.com/doi/pdf/10.1198/1061860043515)
+* The outcomes differ by question type: Agreement vs. Importance.
+
+```{r, echo = FALSE}
+Model.3.ML %>% emmeans::emmeans(~Domain | Time) %>% emmeans::cld()
+```
+\newpage
+
+### Determining for which Outcomes the Effect of Time is Significantly Different from 0 and Different from Other Outcomes.
+
+```{r, echo = FALSE}
+
+# Health Relationship Skills
+## Use Original Model: Model.4.ML
+
+# Partner Selection
+
+Model.4.partner.base <- lme4::lmer(Score ~ Time + Domain + Time:Domain +
+                                   Ethnic_Code + 
+                                   (1|ID),
+                                   data = PICK_clean_longlong2 %>% 
+                                       dplyr::mutate(Domain = 
+                                                         factor(Domain,
+                                                                levels = c("Partner_Selection",
+                                                                           "Healthy_Rel_Skills",
+                                                                           "Past_Rel_Behav",
+                                                                           "Rel_Behav_Attit"))),
+                                   REML = FALSE)
+
+# Past Relationship Behavior (Patterns)
+Model.4.patterns.base <- lme4::lmer(Score ~ Time + Domain + Time:Domain +
+                                   Ethnic_Code + 
+                                   (1|ID),
+                                   data = PICK_clean_longlong2 %>% 
+                                       dplyr::mutate(Domain = 
+                                                         factor(Domain,
+                                                                levels = c("Past_Rel_Behav",
+                                                                           "Healthy_Rel_Skills",
+                                                                           "Partner_Selection",
+                                                                           "Rel_Behav_Attit"))),
+                                   REML = FALSE)
+
+# Relationship Behavior and Attitudes
+
+Model.4.beh.base <- lme4::lmer(Score ~ Time + Domain + Time:Domain +
+                                   Ethnic_Code + 
+                                   (1|ID),
+                                   data = PICK_clean_longlong2 %>% 
+                                       dplyr::mutate(Domain = 
+                                                         factor(Domain,
+                                                                levels = c("Rel_Behav_Attit",
+                                                                           "Past_Rel_Behav",
+                                                                           "Healthy_Rel_Skills",
+                                                                           "Partner_Selection"))),
+                                   REML = FALSE)
+
+Model.4.ML.Slopes.names <- c("1. Rel. Skills",
+                             "2. Partner Sel.",
+                             "3. Past Rel. Beh.",
+                             "4. Rel. Beh. Att.")
+
+cbind(
+cbind(Model.4.ML.Slopes.names,
+    rbind(summary(Model.4.ML)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost"),
+    summary(Model.4.partner.base)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost"),
+    summary(Model.4.patterns.base)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost"),
+    summary(Model.4.beh.base)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost"))) %>% 
+    dplyr::select(Outcome = Model.4.ML.Slopes.names, `Slope` = Estimate, t = t.value) %>% 
+    dplyr::mutate(`Slope` = numformat2(`Slope`)) %>% 
+    dplyr::mutate(t = numformat2(t)),  
+    
+
+cbind(
+    rbind(cbind("---", "---"),
+    as.matrix(summary(Model.4.ML)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost:DomainPartner_Selection" |
+                      rowname == "TimePost:DomainPast_Rel_Behav" |
+                      rowname == "TimePost:DomainRel_Behav_Attit") %>% 
+        dplyr::select(`vs. 1` = Estimate,
+                      t = t.value) %>% 
+    dplyr::mutate(`vs. 1` = numformat2(`vs. 1`)) %>% 
+    dplyr::mutate(t = numformat2(t)))),
+
+    rbind(cbind("---", "---"), cbind("---", "---"),
+          as.matrix(summary(Model.4.partner.base)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost:DomainPast_Rel_Behav" |
+                      rowname == "TimePost:DomainRel_Behav_Attit") %>% 
+        dplyr::select(`vs. 2` = Estimate,
+                      t = t.value) %>% 
+    dplyr::mutate(`vs. 2` = numformat2(`vs. 2`)) %>% 
+    dplyr::mutate(t = numformat2(t))  
+    ) ),
+    
+    rbind(cbind("---", "---"), cbind("---", "---"), cbind("---", "---"),
+    as.matrix(summary(Model.4.patterns.base)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost:DomainRel_Behav_Attit") %>% 
+        dplyr::select(`vs. 3` = Estimate,
+                      t = t.value) %>% 
+    dplyr::mutate(`vs. 3` = numformat2(`vs. 3`)) %>% 
+    dplyr::mutate(t = numformat2(t))  
+    )))) %>% pander::pander()
+
+
+```
+
+
+
+\newpage
+
+## Step 3: Test whether the effect of Time varies by Dosage and Prior Exposure to relationship education.
+
+* Compare 
+
+    *  Model 5 with demographic variables, Time, Outcome Level, an interaction between Time and Outcome Level, and Dosage and Prior Exposure.
+        
+    *  Model 6 with demographic variables, Time, Outcome Level, an interaction between Time and Outcome Level, Dosage and Prior Exposure,and an interaction between Time and Dosage and Time and Prior Exposure.
+
+
+
+```{r, include=FALSE}
+Model.6.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+print(summary(Model.6.ML), digits = 3)
+
+```
+
+```{r, include=FALSE}
+Model.5.2.no.Dos.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                                      Time + Domain + Time:Domain +
+                                      Number_Attended + Prior_RshpEducation_collapsed + 
+                                      Time:Prior_RshpEducation_collapsed + 
+                                      (1|ID),
+                                  data = PICK_clean_longlong2,
+                                  REML = FALSE)
+
+print(summary(Model.5.2.no.Dos.ML), digits = 3)
+
+```
+
+```{r, include=FALSE}
+Model.5.1.no.Exp.ML <- lme4::lmer(Score ~ Ethnic_Code +
+                                      Time + Domain + Time:Domain +
+                                      Number_Attended + Prior_RshpEducation_collapsed + 
+                                      Time:Number_Attended + 
+                                      (1|ID),
+                                  data = PICK_clean_longlong2,
+                                  REML = FALSE)
+
+print(summary(Model.5.1.no.Exp.ML), digits = 3)
+
+```
+
+
+```{r, include=FALSE}
+Model.5.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Number_Attended + Prior_RshpEducation_collapsed + 
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+print(summary(Model.5.ML), digits = 3)
+
+```
+
+
+### Model Comparison: 
+
+#### Effect of Dosage and Prior Exposure
+
+```{r, include = FALSE}
+compar.dos.exp <- anova(Model.4.ML, Model.5.ML)
+
+compar.dos.exp
+
+```
+
+The effect of Dosage and Prior Exposure was not significant ($\chi^2$ = `r format_chi(compar.dos.exp$Chisq[2])`, *df* = `r compar.dos.exp$"Chi Df"[2]`, `r pvaluer_anova(compar.dos.exp$"Pr(>Chisq)"[2])`).
+
+#### Effect of Time X Prior Exposure
+
+```{r, include = FALSE}
+compar.exp.int <- anova(Model.5.1.no.Exp.ML, Model.6.ML)
+
+compar.exp.int
+
+```
+
+The include of Time varied significantly by Prior Exposure ($\chi^2$ = `r format_chi(compar.exp.int$Chisq[2])`, *df* = `r compar.exp.int$"Chi Df"[2]`, `r pvaluer_anova(compar.exp.int$"Pr(>Chisq)"[2])`).
+
+\newpage
+
+#### Effect of Time X Dosage
+
+```{r, include = FALSE}
+compar.dos.int <- anova(Model.5.2.no.Dos.ML, Model.6.ML)
+
+compar.dos.int
+
+```
+
+The effect of Time varied by Dosage ($\chi^2$ = `r format_chi(compar.dos.int$Chisq[2])`, *df* = `r compar.dos.int$"Chi Df"[2]`, `r pvaluer_anova(compar.dos.int$"Pr(>Chisq)"[2])`).
+
+#### Effect of Time X Prior Exposure and Time X Dosage
+
+```{r, include = FALSE}
+compar.dos.exp.int <- anova(Model.4.ML, Model.6.ML)
+
+compar.dos.exp.int
+```
+
+The addition of prior exposure, dosage, and their respective interactions with time as predictors significantly improved model fit ($\chi^2$ = `r format_chi(compar.dos.exp.int$Chisq[2])`, *df* = `r compar.dos.exp.int$"Chi Df"[2]`, `r pvaluer_anova(compar.dos.exp.int$"Pr(>Chisq)"[2])`).
+
+
+\newpage
+
+
+
+### Plotting the Effects of Prior Exposure and Dosage
+
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("Domain", "Time", "Number_Attended", "Prior_RshpEducation_collapsed"),
+                mod = Model.6.ML) %>% 
+    data.frame %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("RPre",
+                                           "Post"),
+                                labels = c("RPre",
+                                           "Post"))) %>% 
+    dplyr::mutate(Domain = factor(Domain,
+                               levels = c("Healthy_Rel_Skills",
+                                          "Partner_Selection",
+                                          "Past_Rel_Behav",
+                                          "Rel_Behav_Attit"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Atts."))) %>% 
+    dplyr::mutate(Dosage = factor(Number_Attended,
+                                  levels = c("One Session",
+                                             "Two Sessions",
+                                             "Three Sessions"))) %>% 
+    dplyr::mutate(`Estimated Score` = fit) %>%
+    ggplot(aes(x = Time,
+               y = `Estimated Score`,
+               color = Dosage)) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = lower,
+                      ymax = upper,
+                      linetype =Dosage,
+                      color = Dosage),
+                  width = .2) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = `Estimated Score` - se,
+                      ymax = `Estimated Score` + se,
+                      linetype = Dosage,
+                      color = Dosage),
+                  width = .2) +
+    ylim(2,5) +
+    geom_point(position=position_dodge(width=0.2)) +
+    geom_line(position=position_dodge(width=0.2),
+              aes(x = Time,
+               y = `Estimated Score`,
+               group = Dosage,
+               linetype = Dosage))+
+    guides(linetype = FALSE) +
+    scale_linetype_manual(values=c("dashed", "dotted", "solid")) +
+    ggtitle("Effect of Program Varies by Dosage (and Outcome and Exposure)") + 
+    theme_bw() + 
+    facet_grid(Prior_RshpEducation_collapsed~Domain)
+```
+
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("Domain", "Time", "Number_Attended", "Prior_RshpEducation_collapsed"),
+                mod = Model.6.ML) %>% 
+    data.frame %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("RPre",
+                                           "Post"),
+                                labels = c("RPre",
+                                           "Post"))) %>% 
+    dplyr::mutate(Domain = factor(Domain,
+                               levels = c("Healthy_Rel_Skills",
+                                          "Partner_Selection",
+                                          "Past_Rel_Behav",
+                                          "Rel_Behav_Attit"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Atts."))) %>% 
+    dplyr::mutate(Dosage = factor(Number_Attended,
+                                  levels = c("One Session",
+                                             "Two Sessions",
+                                             "Three Sessions"))) %>% 
+    dplyr::mutate(Exposure = factor(Prior_RshpEducation_collapsed,
+                                  levels = c("Some/A lot",
+                                             "None"))) %>% 
+    dplyr::mutate(`Estimated Score` = fit) %>%
+    ggplot(aes(x = Time,
+               y = `Estimated Score`,
+               color = Exposure)) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = lower,
+                      ymax = upper,
+                      linetype = Exposure,
+                      color = Exposure),
+                  width = .2) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = `Estimated Score` - se,
+                      ymax = `Estimated Score` + se,
+                      linetype = Exposure,
+                      color = Exposure),
+                  width = .2) +
+    ylim(2,5) +
+    geom_point(position=position_dodge(width=0.2)) +
+    geom_line(position=position_dodge(width=0.2),
+              aes(x = Time,
+               y = `Estimated Score`,
+               group = Exposure,
+               linetype = Exposure))+
+    scale_linetype_manual(values=c("solid", "dotted")) +
+    # guides(linetype = FALSE) +
+    ggtitle("Effect of Program Varies by Dosage (and Exposure and Outcome)") + 
+    theme_bw() + 
+    facet_grid(Dosage~Domain)
+```
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("Time", "Number_Attended"),
+                mod = Model.6.ML) %>% 
+    data.frame %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("RPre",
+                                           "Post"),
+                                labels = c("Retrospective-Pre",
+                                           "Post"))) %>% 
+    dplyr::mutate(Dosage = factor(Number_Attended,
+                                  levels = c("One Session",
+                                             "Two Sessions",
+                                             "Three Sessions"))) %>% 
+    dplyr::mutate(`Estimated Score` = fit) %>%
+    ggplot(aes(x = Time,
+               y = `Estimated Score`,
+               color = Dosage)) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = lower,
+                      ymax = upper,
+                      # linetype = "solid",
+                      linetype = Dosage,
+                      color = Dosage),
+                  width = .2) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = `Estimated Score` - se,
+                      ymax = `Estimated Score` + se,
+                      # linetype = "dotted",
+                      linetype = Dosage,
+                      color = Dosage),
+                  width = .2) +
+    ylim(2,5) +
+    geom_point(position=position_dodge(width=0.2)) +
+    geom_line(position=position_dodge(width=0.2),
+              aes(x = Time,
+               y = `Estimated Score`,
+               group = Dosage,
+               linetype = Dosage)) +
+    scale_linetype_manual(values=c("dashed", "dotted", "solid")) +
+    # guides(linetype = FALSE) +
+    ggtitle("Effect of Program Varies by Dosage (and Exposure and Outcome)") + 
+    labs(subtitle = "Effect Shown is for Relationships Skills and No Prior Relationship Education") +
+    theme_bw() 
+```
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("Time", "Prior_RshpEducation_collapsed"),
+                mod = Model.6.ML) %>% 
+    data.frame %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("RPre",
+                                           "Post"),
+                                labels = c("Retrospective-Pre",
+                                           "Post"))) %>% 
+    dplyr::mutate(Exposure = factor(Prior_RshpEducation_collapsed,
+                                  levels = c("Some/A lot",
+                                             "None"))) %>% 
+    dplyr::mutate(`Estimated Score` = fit) %>%
+    ggplot(aes(x = Time,
+               y = `Estimated Score`,
+               color = Exposure)) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = lower,
+                      ymax = upper,
+                      # linetype = "solid",
+                      linetype = Exposure,
+                      color = Exposure),
+                  width = .2) +
+    geom_errorbar(position=position_dodge(width=0.2),
+                  aes(ymin = `Estimated Score` - se,
+                      ymax = `Estimated Score` + se,
+                      # linetype = "dotted",
+                      linetype = Exposure,
+                      color = Exposure),
+                  width = .2) +
+    ylim(2,5) +
+    geom_point(position=position_dodge(width=0.2)) +
+    geom_line(position=position_dodge(width=0.2),
+              aes(x = Time,
+               y = `Estimated Score`,
+               group = Exposure,
+               linetype = Exposure)) +
+    scale_linetype_manual(values=c("dashed", "dotted", "solid")) +
+    # guides(linetype = FALSE) +
+    ggtitle("Effect of Program Varies by Prior Exposure (and Dosage and Outcome)") + 
+    labs(subtitle = "Effect Shown is for Relationships Skills and No Prior Relationship Education") +
+    theme_bw() 
+```
+
+\newpage
+
+#### Examining How Respondents Scores Differed by Prior Exposure at Each Time Point
+
+* Those who had previous experience with relationship education rated themselves higher at Retrospective Pre, but not Post.
+
+* The ceiling effect is clearly shown.
+
+* __Are these analyses appropriate given the interaction?__
+
+
+```{r, echo = FALSE}
+Model.6.ML %>% emmeans::emmeans(~Prior_RshpEducation_collapsed | Time) %>% emmeans::cld()
+```
+\newpage
+
+#### Examining How Respondents Scores Differed by Dosage Level at Each Time Point
+
+* Those who attended all 3 sessions rated their prior knowledge as lower...you don't know what you don't know...
+
+* The ceiling effect is clearly shown.
+
+
+```{r, echo = FALSE}
+Model.6.ML %>% emmeans::emmeans(~Number_Attended | Time) %>% emmeans::cld()
+```
+
+\newpage
+
+#### Determining for which Dosage Levels the Effect of Time is Significantly Different from 0 and Different from Other Dosage Levels.
+
+* The simple slopes are for when Relationship Skills is the outcome and the participant has no prior relationship education.
+
+* The difference between simple slopes for dosage levels will be consistent across combinations of outcomes and dosage.
+
+* To know which simple slopes are significantly different from 0 would require testing by changing the base categories of outcome, dosage, and exposure.
+
+```{r, echo = FALSE}
+
+# Attended 1 Course Only as base.
+## Use Original Model: Model.4.ML
+
+# Attended 2 courses as base.
+
+Model.6.Attend2.base <- lme4::lmer(Score ~ Ethnic_Code + 
+                                       Time + Domain + Time:Domain +
+                                       Number_Attended + Prior_RshpEducation_collapsed + 
+                                       Time:Number_Attended + 
+                                       Time:Prior_RshpEducation_collapsed + 
+                                       (1|ID),
+                                   data = PICK_clean_longlong2 %>%
+                                       dplyr::mutate(Number_Attended = 
+                                                         factor(Number_Attended,
+                                                                levels = c("Two Sessions",
+                                                                           "One Session",
+                                                                           "Three Sessions"))),
+                                   REML = FALSE)
+
+Model.6.Attend3.base <- lme4::lmer(Score ~ Ethnic_Code + 
+                                       Time + Domain + Time:Domain +
+                                       Number_Attended + Prior_RshpEducation_collapsed + 
+                                       Time:Number_Attended + 
+                                       Time:Prior_RshpEducation_collapsed + 
+                                       (1|ID),
+                                   data = PICK_clean_longlong2 %>%
+                                       dplyr::mutate(Number_Attended = 
+                                                         factor(Number_Attended,
+                                                                levels = c("Three Sessions",
+                                                                           "One Session",
+                                                                           "Two Sessions"))),
+                                   REML = FALSE)
+
+Model.6.ML.Slopes.dos.names <- c("1. Att. 1 Sess.",
+                             "2. Att. 2 Sess.",
+                             "3. Att. 3 Sess.")
+
+cbind(
+cbind(Model.6.ML.Slopes.dos.names,
+    rbind(summary(Model.6.ML)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost"),
+    summary(Model.6.Attend2.base)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost"),
+    summary(Model.6.Attend3.base)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost"))) %>% 
+    dplyr::select(Outcome = Model.6.ML.Slopes.dos.names, `Slope` = Estimate, t = t.value) %>% 
+    dplyr::mutate(`Slope` = numformat(`Slope`)) %>% 
+    dplyr::mutate(t = numformat(t)),  
+    
+
+cbind(
+    rbind(cbind("---", "---"),
+    as.matrix(summary(Model.6.ML)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost:Number_AttendedTwo Sessions" |
+                      rowname == "TimePost:Number_AttendedThree Sessions") %>% 
+        dplyr::select(`vs. 1` = Estimate,
+                      t = t.value) %>% 
+    dplyr::mutate(`vs. 1` = numformat(`vs. 1`)) %>% 
+    dplyr::mutate(t = numformat(t)))),
+
+    rbind(cbind("---", "---"), cbind("---", "---"),
+          as.matrix(summary(Model.6.Attend2.base)$coefficients %>% 
+        data.frame() %>% 
+        tibble::rownames_to_column() %>% 
+        dplyr::filter(rowname == "TimePost:Number_AttendedThree Sessions") %>% 
+        dplyr::select(`vs. 2` = Estimate,
+                      t = t.value) %>% 
+    dplyr::mutate(`vs. 2` = numformat(`vs. 2`)) %>% 
+    dplyr::mutate(t = numformat(t)))))) %>% pander::pander()
+
+
+```
+
+\newpage
+## Step 4: Test whether the effect of Time varies by demographic variables using a Bonferroni correction, *p* = .05/6 = `r formatC((.05/6), format = "f", digits = 5)`.
+
+* Compare
+
+    * Model 6 with demographic variables, Time, Outcome Level, an interaction between Time and Outcome Level, and, finally, Dosage and Exposure and their respective interactions with Time.
+    
+    * Model 7.X with all predictors from Model 6 and an interaction between Time and a given demographic covariate.
+    
+    
+
+\newpage 
+
+### Testing Whether Time Varies by Demographic Covariates    
+
+```{r, echo=FALSE}
+
+
+
+# Race/Ethnicity
+Model.7.2.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                               Time + Domain + Time:Domain +
+                               Prior_RshpEducation_collapsed + Number_Attended + 
+                               Time:Prior_RshpEducation_collapsed + 
+                               Time:Number_Attended + 
+                               Time:Ethnic_Code +
+                               (1|ID),
+                           data = PICK_clean_longlong2,
+                           REML = FALSE)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+##### Race/Ethnicity 
+
+```{r, include = FALSE}
+compar.race.time.int <- anova(Model.6.ML, Model.7.2.ML)
+
+compar.race.time.int
+```
+
+The effect of Time varied by Race/Ethnicity ($\chi^2$ = `r format_chi(compar.race.time.int$Chisq[2])`, *df* = `r compar.race.time.int$"Chi Df"[2]`, `r pvaluer_anova(compar.race.time.int$"Pr(>Chisq)"[2])`).
+
+
+\newpage
+
+## Diagnostics
+
+### The model
+
+```{r, echo=FALSE}
+Model.8.REML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = TRUE)
+
+print(summary(Model.8.REML), digits = 3)
+
+```
+
+\newpage
+
+### Distribution of Outcome
+
+* Not an assumption, but could indicate need for a different link function.
+
+```{r, echo = FALSE}
+res.fit <- data.frame(fitted(Model.8.REML), residuals(Model.8.REML, type = "pearson", scaled = TRUE), Model.8.REML@frame) 
+
+
+res.fit %>% 
+    ggplot2::ggplot(aes(x=Score)) +
+  geom_histogram(color = "blue", fill="white", position="dodge",
+                 binwidth = .2)+
+  # geom_vline(data=mu, aes(xintercept=grp.mean, color=Domain),
+  #            linetype="dashed")+
+  theme(legend.position="none") +
+    ggtitle("Distribution of Outcome") +
+    ylab("Count")
+
+
+res.fit %>% 
+    ggplot2::ggplot(aes(x=Score)) +
+  geom_histogram(color = "blue", fill="white", position="dodge",
+                 binwidth = .2)+
+  # geom_vline(data=mu, aes(xintercept=grp.mean, color=Domain),
+  #            linetype="dashed")+
+  theme(legend.position="none") +
+    facet_grid(Time~.) +
+    ggtitle("Distribution of Outcome by Time")+
+    ylab("Count")
+
+
+res.fit %>% 
+    ggplot2::ggplot(aes(x=Score, color=Domain)) +
+  geom_histogram(fill="white", position="dodge",
+                 binwidth = .2)+
+  # geom_vline(data=mu, aes(xintercept=grp.mean, color=Domain),
+  #            linetype="dashed")+
+  theme(legend.position="none") +
+    facet_grid(Time~Domain) +
+    ggtitle("Distribution of Outcome by Time and Domain")+
+    ylab("Count")
+    
+
+```
+
+
+### Normality of Residuals
+
+```{r, echo = FALSE}
+
+
+res.fit %>% 
+    ggplot2::ggplot(aes(x=residuals.Model.8.REML..type....pearson...scaled...TRUE.)) +
+  geom_histogram(color = "blue", fill="white", position="dodge",
+                 binwidth = .2)+
+  # geom_vline(data=mu, aes(xintercept=grp.mean, color=Domain),
+  #            linetype="dashed")+
+  theme(legend.position="none") +
+    ggtitle("Distribution of Residuals")+
+    ylab("Count") +
+    xlab("Residuals")
+
+
+res.fit %>% 
+    ggplot2::ggplot(aes(x=residuals.Model.8.REML..type....pearson...scaled...TRUE.)) +
+  geom_histogram(color = "blue", fill="white", position="dodge",
+                 binwidth = .2)+
+  # geom_vline(data=mu, aes(xintercept=grp.mean, color=Domain),
+  #            linetype="dashed")+
+  theme(legend.position="none") +
+    facet_grid(Time~.)+
+    ggtitle("Distribution of Residuals by Time")+
+    ylab("Count") +
+    xlab("Residuals")
+
+
+res.fit %>% 
+    ggplot2::ggplot(aes(x=residuals.Model.8.REML..type....pearson...scaled...TRUE., color=Domain)) +
+  geom_histogram(fill="white", position="dodge",
+                 binwidth = .2)+
+  # geom_vline(data=mu, aes(xintercept=grp.mean, color=Domain),
+  #            linetype="dashed")+
+  theme(legend.position="none") +
+    facet_grid(Time~Domain)+
+    ggtitle("Distribution of Residuals by Time and Domain")+
+    ylab("Count") +
+    xlab("Residuals")
+```
+\newpage
+
+#### Q-Q Plot
+
+```{r}
+qqnorm(residuals(Model.8.REML))
+```
+\newpage
+
+
+### Assumptions of Model Form
+
+* Underestimating those on the low end, overestimating those on the very high end.
+
+```{r, echo = FALSE}
+
+# plot(Model.8.REML)
+
+# res.fit <- data.frame(fitted(Model.8.REML), residuals(Model.8.REML), Model.8.REML@frame) 
+# res.fit %>% dplyr::arrange(fitted.Model.8.REML.)
+
+
+
+res.fit %>% 
+ggplot2::ggplot(aes(x= fitted.Model.8.REML., y = residuals.Model.8.REML..type....pearson...scaled...TRUE.)) +
+        geom_point() +
+    theme_bw() + geom_smooth(method='loess',formula=y~x, color = "red") + 
+    geom_hline(yintercept = 0, color = 'blue', size = 1) +
+    xlab("Fitted") + ylab("Residuals")
+
+res.fit %>% 
+ggplot2::ggplot(aes(x= fitted.Model.8.REML., y = residuals.Model.8.REML..type....pearson...scaled...TRUE.)) +
+        geom_point() +
+    theme_bw() + geom_smooth(method='loess',formula=y~x, color = "red") + 
+    geom_hline(yintercept = 0, color = 'blue', size = 1) +
+     
+    facet_grid(~Domain)+
+    xlab("Fitted") + ylab("Residuals")
+
+```
+
+
+
+\newpage
+
+### Influential Cases
+
+```{r, echo = FALSE}
+ggplot(data.frame(lev=hatvalues(Model.8.REML),
+                  pearson=residuals(Model.8.REML,
+                                    type="pearson")),
+      aes(x=lev,y=pearson)) +
+    geom_point() +
+    theme_bw() +
+    ylab("Residuals") + xlab("Leverage")
+```
+
+\newpage
+
+#### Influential Cases
+
+```{r, echo = FALSE}
+levId <- which(hatvalues(Model.8.REML) >= .15)
+Model.8.REML@frame[levId,c("Score","Ethnic_Code", 
+                           "Time", "Domain", "Prior_RshpEducation_collapsed",
+                           "Number_Attended",
+                           "ID")]
+```
+
+
+
+\newpage
+
+#### Descriptive Statistics (for Reference)
+
+```{r, echo = FALSE}
+summary(Model.8.REML@frame[,c("Score","Ethnic_Code", 
+                           "Time", "Domain", "Prior_RshpEducation_collapsed",
+                           "Number_Attended",
+                           "ID")])
+
+```
+\newpage
+
+#### Effect on Estimates of Removing High Leverage Values
+
+```{r, echo = FALSE}
+
+mmLev <- lme4::lmer(Score ~ Ethnic_Code + 
+                            Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID), data=Model.8.REML@frame[-c(levId),])
+mmLevCD <- data.frame(effect= lme4::fixef(Model.8.REML),
+                     change=(lme4::fixef(mmLev) - lme4::fixef(Model.8.REML)),
+                     se=sqrt(diag(as.matrix(vcov(Model.8.REML))))
+                     )
+rownames(mmLevCD) <- names(lme4::fixef(mmLev))
+mmLevCD$multiples <- abs(mmLevCD$change / mmLevCD$se)
+mmLevCD
+
+
+```
+
+ 
+
+
+\newpage
+
+### Frequencies of Outcomes Variables at Item Level
+
+#### Perceived Knowledge About Relationship Skills
+
+##### Retro-Pre
+```{r,echo=FALSE}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::mutate(`Healthy Rel.` = Healthy_Rel_Before.n) %>% 
+    dplyr::mutate(Communicate = Communicate_Before.n) %>%  
+    dplyr::mutate(`Confl. Mng.` = ConflictManagement_Before.n) %>% 
+    tableM(`Healthy Rel.`, Communicate, `Confl. Mng.`,
+           resp.opts = c(1:5)) %>% 
+    pander::pander()
+
+```
+
+##### Post
+```{r,echo=FALSE}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::mutate(`Healthy Rel.` = Healthy_Rel.n) %>% 
+    dplyr::mutate(Communicate = Communicate.n) %>%  
+    dplyr::mutate(`Confl. Mng.` = ConflictManagement.n) %>% 
+    tableM(`Healthy Rel.`, Communicate, `Confl. Mng.`,
+           resp.opts = c(1:5)) %>% 
+    pander::pander()
+
+```
+
+\newpage
+
+#### Perceived Knowledge About Partner Selection
+
+##### Retro-Pre
+```{r,echo=FALSE}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::rename(`Right Partner` = RightPartner_Before.n,
+                  `Learn Partner` = LearnPartner_Before.n,
+                  `Pace Rel.` = PaceRelationship_Before.n,
+                  `Warning Signs` = WarningSigns_Before.n) %>% 
+    tableM(`Right Partner`, `Learn Partner`, 
+           `Pace Rel.`, `Warning Signs`,
+           resp.opts = c(1:5)) %>% 
+    pander::pander()
+
+```
+
+##### Post
+```{r,echo=FALSE}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::rename(`Right Partner` = RightPartner.n,
+                  `Learn Partner` = LearnPartner.n,
+                  `Pace Rel.` = PaceRelationship.n,
+                  `Warning Signs` = WarningSigns.n) %>% 
+    tableM(`Right Partner`, `Learn Partner`, 
+           `Pace Rel.`, `Warning Signs`,
+           resp.opts = c(1:5)) %>% 
+    pander::pander()
+```
+
+
+
+\newpage
+
+#### Perceived Importance of Knowledge About a Potential Partner's Relationships Patterns
+
+##### Retro-Pre
+```{r,echo=FALSE}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::rename(`Lrn. Grow. Up` = LearnedGrowingUp_Before.n,
+                  `Past Rels.` = PastRelationships_Before.n, 
+                  `Get Along Pars.` = GetAlongParents_Before.n, 
+                  `Friendships` = FriendshipsAreLike_Before.n) %>% 
+    tableM(`Lrn. Grow. Up`, `Past Rels.`, 
+           `Get Along Pars.`, `Friendships` ,
+           resp.opts = c(1:5)) %>% 
+    pander::pander()
+
+```
+
+##### Post
+```{r,echo=FALSE}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::rename(`Lrn. Grow. Up` = LearnedGrowingUp.n,
+                  `Past Rels.` = PastRelationships.n, 
+                  `Get Along Pars.` = GetAlongParents.n, 
+                  `Friendships` = FriendshipsAreLike.n) %>% 
+    tableM(`Lrn. Grow. Up`, `Past Rels.`, 
+           `Get Along Pars.`, Friendships,
+           resp.opts = c(1:5)) %>% 
+    pander::pander()
+```
+
+\newpage
+
+
+#### Perceived Importance of Knowledge About a Potential Partner's Relationship Behavior and Attitudes
+
+##### Retro-Pre
+```{r,echo=FALSE}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::mutate(Fights = Fights_Before.n, 
+                  `Feelings Hurt` = FeelingsHurt_Before.n, 
+                  `Right and Wrong` = RightandWrong_Before.n)  %>% 
+    tableM(Fights, `Feelings Hurt`, `Right and Wrong`,
+           resp.opts = c(1:5)) %>% 
+    pander::pander()
+
+```
+
+##### Post
+```{r,echo=FALSE}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::mutate(Fights = Fights.n, 
+                  `Feelings Hurt` = FeelingsHurt.n, 
+                  `Right and Wrong` = RightandWrong.n)  %>% 
+    tableM(Fights, `Feelings Hurt`, `Right and Wrong`,
+           resp.opts = c(1:5)) %>% 
+    pander::pander()
+```
+
+
+
+\newpage
+
+### Frequencies of Change in Outcomes Variables at Scale Level
+
+* Collapsing Categories for Display of Frequencies, but not for Analyses
+
+```{r,echo=FALSE}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    
+    dplyr::mutate(Healthy_Rel_Skills_Change = dplyr::case_when(round(Healthy_Rel_Skills_Change, 2) <= 0 ~ "[-1,0]",
+                                                               round(Healthy_Rel_Skills_Change, 2) <= 1 ~ "(0,1]",
+                                                               round(Healthy_Rel_Skills_Change, 2) <= 2 ~ "(1,2]",
+                                                               round(Healthy_Rel_Skills_Change, 2) <= 3 ~ "(2,3]",
+                                                               round(Healthy_Rel_Skills_Change, 2) <= 4 ~ "(3,4]")) %>% 
+    dplyr::mutate(Healthy_Rel_Skills_Change = factor(Healthy_Rel_Skills_Change, 
+                                                      levels = c("[-1,0]", 
+                                                                 "(0,1]",
+                                                                 "(1,2]",
+                                                                 "(2,3]",
+                                                                 "(3,4]"))) %>% 
+    
+    dplyr::mutate(Partner_Selection_Change = dplyr::case_when(round(Partner_Selection_Change, 2) <= 0 ~ "[-1,0]",
+                                                               round(Partner_Selection_Change, 2) <= 1 ~ "(0,1]",
+                                                               round(Partner_Selection_Change, 2) <= 2 ~ "(1,2]",
+                                                               round(Partner_Selection_Change, 2) <= 3 ~ "(2,3]",
+                                                               round(Partner_Selection_Change, 2) <= 4 ~ "(3,4]")) %>% 
+    dplyr::mutate(Partner_Selection_Change = factor(Partner_Selection_Change, 
+                                                      levels = c("[-1,0]", 
+                                                                 "(0,1]",
+                                                                 "(1,2]",
+                                                                 "(2,3]",
+                                                                 "(3,4]"))) %>% 
+    
+    dplyr::mutate(Past_Rel_Behav_Change = dplyr::case_when(round(Past_Rel_Behav_Change, 2) <= 0 ~ "[-1,0]",
+                                                               round(Past_Rel_Behav_Change, 2) <= 1 ~ "(0,1]",
+                                                               round(Past_Rel_Behav_Change, 2) <= 2 ~ "(1,2]",
+                                                               round(Past_Rel_Behav_Change, 2) <= 3 ~ "(2,3]",
+                                                               round(Past_Rel_Behav_Change, 2) <= 4 ~ "(3,4]")) %>% 
+    dplyr::mutate(Past_Rel_Behav_Change = factor(Past_Rel_Behav_Change, 
+                                                      levels = c("[-1,0]", 
+                                                                 "(0,1]",
+                                                                 "(1,2]",
+                                                                 "(2,3]",
+                                                                 "(3,4]"))) %>%
+    
+    dplyr::mutate(Rel_Behav_Attit_Change = dplyr::case_when(round(Rel_Behav_Attit_Change, 2) <= 0 ~ "[-1,0]",
+                                                               round(Rel_Behav_Attit_Change, 2) <= 1 ~ "(0,1]",
+                                                               round(Rel_Behav_Attit_Change, 2) <= 2 ~ "(1,2]",
+                                                               round(Rel_Behav_Attit_Change, 2) <= 3 ~ "(2,3]",
+                                                               round(Rel_Behav_Attit_Change, 2) <= 4 ~ "(3,4]")) %>% 
+    dplyr::mutate(Rel_Behav_Attit_Change = factor(Rel_Behav_Attit_Change, 
+                                                      levels = c("[-1,0]", 
+                                                                 "(0,1]",
+                                                                 "(1,2]",
+                                                                 "(2,3]",
+                                                                 "(3,4]"))) %>% 
+    dplyr::mutate(`Rel. Skills` = Healthy_Rel_Skills_Change,
+                  `Prtnr. Sel.` = Partner_Selection_Change, 
+                  `Past Rel. Beh.` = Past_Rel_Behav_Change,
+                  `Rel. Beh. Att.` = Rel_Behav_Attit_Change) %>% 
+    tableM(`Rel. Skills`, `Prtnr. Sel.`, `Past Rel. Beh.`, `Rel. Beh. Att.`)  %>% 
+    pander::pander()
+
+
+```
+
+\newpage
+
+
+
+
+\newpage
+
+## Final Model
+
+### Testing Significance of Predictors
+
+#### Final Model Estimates
+
+```{r, echo=FALSE}
+Model.9.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+print(summary(Model.9.ML), digits = 3)
+
+```
+
+```{r,  include =FALSE}
+
+Model.9.noTXRace.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             # Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+Model.9.noTXDos.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             # Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+
+Model.9.noTXExp.ML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             # Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+Model.9.noTXDom.ML <- lme4::lmer(Score ~ Ethnic_Code +
+                             Time + Domain + 
+                                 # Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended +
+                             Time:Prior_RshpEducation_collapsed +
+                             Time:Number_Attended +
+                             Time:Ethnic_Code +
+                             # Time:Education_3cat +
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = FALSE)
+
+
+
+```
+
+
+\newpage
+
+##### Time X Race/Ethnicity
+
+```{r, include = FALSE}
+compar.F.race.time.sigint <- anova(Model.9.ML, Model.9.noTXRace.ML)
+
+compar.F.race.time.sigint
+
+```
+
+The effect of Time varied by Race/Ethnicity ($\chi^2$ = `r format_chi(compar.F.race.time.sigint$Chisq[2])`, *df* = `r compar.F.race.time.sigint$"Chi Df"[2]`, `r pvaluer_anova(compar.F.race.time.sigint$"Pr(>Chisq)"[2])`).
+
+##### Time X Dosage
+
+```{r, include = FALSE}
+compar.F.dos.time.sigint <- anova(Model.9.ML, Model.9.noTXDos.ML)
+
+compar.F.dos.time.sigint
+
+```
+
+The effect of Time varied by Dosage ($\chi^2$ = `r format_chi(compar.F.dos.time.sigint$Chisq[2])`, *df* = `r compar.F.dos.time.sigint$"Chi Df"[2]`, `r pvaluer_anova(compar.F.dos.time.sigint$"Pr(>Chisq)"[2])`).
+
+##### Time X Prior Exposure
+
+```{r, include = FALSE}
+compar.F.exp.time.sigint <- anova(Model.9.ML, Model.9.noTXExp.ML)
+
+compar.F.exp.time.sigint
+
+```
+
+The effect of Time varied by Prior Exposure ($\chi^2$ = `r format_chi(compar.F.exp.time.sigint$Chisq[2])`, *df* = `r compar.F.exp.time.sigint$"Chi Df"[2]`, `r pvaluer_anova(compar.F.exp.time.sigint$"Pr(>Chisq)"[2])`).
+
+
+##### Time X Domain
+
+```{r, include = FALSE}
+compar.F.dom.time.sigint <- anova(Model.9.ML, Model.9.noTXDom.ML)
+
+compar.F.dom.time.sigint
+
+```
+
+The effect of Time varied by Domain ($\chi^2$ = `r format_chi(compar.F.dom.time.sigint$Chisq[2])`, *df* = `r compar.F.dom.time.sigint$"Chi Df"[2]`, `r pvaluer_anova(compar.F.dom.time.sigint$"Pr(>Chisq)"[2])`).
+
+
+
+\newpage
+
+#### Determining Significant Differences at Retro-Pre- and Post-Program Assessments
+
+* Easier way to do this than by switching out reference groups? Possibly.
+
+#### Determining Significance of Simple Slopes
+
+* Easier way to do this than by switching out reference groups? Possibly.
+
+\newpage
+
+#### Refitting Final Model with REML
+
+```{r, echo = FALSE}
+Model.9.RE <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = TRUE)
+
+print(summary(Model.9.RE), digits = 3)
+
+```
+
+\newpage
+
+```{r, echo = FALSE}
+
+texreg::screenreg(list(Model.2.ML,
+                       Model.4.ML,
+                       Model.6.ML))
+
+
+
+
+```
+
+\newpage
+
+```{r, echo = FALSE}
+
+texreg::screenreg(list(Model.7.2.ML,
+                       Model.9.RE))
+
+
+
+
+```
+
+\newpage
+
+### Testing Signifigance of Regression Coefficients
+
+```{r, include = FALSE}
+
+# TimeXoutcome.effects <- Model.9.RE %>% emmeans::emmeans(~Time*Domain ) %>% emmeans::cld()
+
+# I'm not sure if this does what I think it does
+
+pairs(Model.9.RE %>% 
+          emmeans::emmeans(~Time*Domain)) %>% 
+    data.frame() %>% 
+    dplyr::filter(contrast %in% c("RPre,Healthy_Rel_Skills - Post,Healthy_Rel_Skills",
+                                  "RPre,Partner_Selection - Post,Partner_Selection",
+                                  "RPre,Past_Rel_Behav - Post,Past_Rel_Behav",
+                                  "RPre,Rel_Behav_Attit - Post,Rel_Behav_Attit")) %>% 
+    dplyr::mutate(estimate = estimate*(-1))
+
+# I think this is fine, but not easily included in the text.
+Model.9.RE %>% 
+          emmeans::emmeans(~Time|Domain) 
+
+
+
+
+
+
+
+```
+
+
+
+#### Kenward-Roger method via lmerTest
+
+```{r, echo = FALSE}
+
+
+Model.9.RE.KR <- lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = TRUE)
+
+anova(Model.9.RE.KR, ddf = "Kenward-Roger")
+
+```
+\newpage
+
+
+```{r, echo = FALSE}
+summary(Model.9.RE.KR, ddf = "Kenward-Roger")
+
+
+```
+
+\newpage
+# Comparing Models
+
+```{r, echo = FALSE}
+
+Model.9.RE.KR.with.nsigpreds <- lmerTest::lmer(Score ~ Age_Decades + Ethnic_Code + 
+                             Education_3cat + FinancialWorry_cat + 
+                             Gender + 
+                             Divorced_Dichotomous + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = TRUE)
+
+
+
+Orig.Coef <- (summary(Model.9.RE.KR.with.nsigpreds, 
+                      ddf = "Kenward-Roger"))$coefficients
+
+Trim.Coef <- (summary(Model.9.RE.KR, ddf = "Kenward-Roger"))$coefficients
+
+
+dplyr::left_join(Orig.Coef %>% 
+    data.frame() %>% 
+    tibble::rownames_to_column() %>% 
+    dplyr::mutate(Predictor = rowname) %>% 
+    dplyr::select(Predictor, Estimate, Pr...t..) %>% 
+    # round(digits = 6) %>% 
+    dplyr::mutate(`Orig. Mod. Est.` = Estimate) %>% 
+    dplyr::mutate(`Orig. p` = Pr...t..) %>% 
+    dplyr::select(Predictor, `Orig. Mod. Est.`, `Orig. p`),
+
+
+(Trim.Coef %>% 
+    data.frame() %>% 
+    tibble::rownames_to_column() %>% 
+    dplyr::mutate(Predictor = rowname) %>% 
+    dplyr::select(Predictor, Estimate, Pr...t..) %>% 
+    # round(digits = 6) %>% 
+    dplyr::mutate(`Trim. Mod. Est.` = Estimate) %>% 
+    dplyr::mutate(`Trim. p` = Pr...t..) %>% 
+    dplyr::select(Predictor, `Trim. Mod. Est.`, `Trim. p`)), 
+by = "Predictor") %>% 
+    dplyr::mutate(`Diff. Est.` = `Trim. Mod. Est.` - `Orig. Mod. Est.`) %>% 
+    dplyr::mutate(`Diff. p` = `Trim. p` - `Orig. p`) %>% 
+    dplyr::mutate(`Orig. Mod. Est.` = numformat(`Orig. Mod. Est.`)) %>% 
+    dplyr::mutate(`Orig. p` = numformat(`Orig. p`)) %>% 
+    dplyr::mutate(`Trim. Mod. Est.` = numformat(`Trim. Mod. Est.`)) %>% 
+    dplyr::mutate(`Trim. p` = numformat(`Trim. p`)) %>% 
+    dplyr::mutate(`Diff. Est.` = numformat(`Diff. Est.`)) %>% 
+    dplyr::mutate(`Diff. p` = numformat(`Diff. p`)) %>% 
+    dplyr::mutate(Predictor = trimws(Predictor)) %>% 
+    pander::pander()
+```
+
+
+
+
+
+\newpage
+
+
+
+
+```{r, include = FALSE}
+# Testing association between income and education.
+
+test_anova <- afex::aov_4(`Income (10K)` ~ Education_3cat + (1|ID), data = PICK_clean)
+
+test_anova %>% emmeans::emmeans(~Education_3cat) %>% emmeans::emmip(~Education_3cat, CIs = TRUE)
+```
+
+```{r, include = FALSE}
+chisq.test(PICK_clean$FinancialWorry_cat,  PICK_clean$Education_3cat)
+
+table(PICK_clean$Education_3cat, PICK_clean$FinancialWorry_cat)
+
+```
+
+
+
+\newpage
+
+
+# Textual Summary
+
+## Methods 
+
+**Needs to be updated to discuss removal of non-significant predictors**
+
+To evaluate the program quantitatively, we examined the impact of the program (i.e., post vs. retrospective pre-program assessments) on the four outcomes (Skills, Partner Selection, Relationship Patterns, Behavior and Attitudes) described above. We used a linear mixed effects model instead of a repeated measures MANOVA in order to assess interactions between multiple covariates, both continuous and categorical. Furthermore, mixed effects models do not assume homogeneity of variance. Specifically, we used a random intercept multilevel regression model (RI MLM) in which scores on the four outcomes at two assessments (retrospective-pre and post-program) were nested within participant. 
+
+First, we tested whether the program (i.e., post vs. retrospective pre-program assessment) had a significant effect on the four outcomes (all main effects were tested simultaneously) even after controlling for demographic covariates. In other words, did participants experience the hypothesized gains on the four outcomes? Second, we tested whether the effect of the program differed for each outcome by including interactions with outcome level. Did participants gain more on some outcomes than for others? Third, we tested whether the effect of the program varied by dosage and prior exposure to relationship education by including interactions with dosage and prior exposure. Did participants gain more if they attended more courses or had not previously received relationship eduation? Finally, we examined whether the effect of the program varied by age, race/ethnicity, education level, financial worry, gender, and divorce history by adding additional interactions one-at-a-time. Significant interactions were retained in the final model. To reduce the risk of Type I error in detecting the effects of demographic variables, a Bonferroni correction was used. Significance of predictors was tested using the likelihood ratio test following recommendations of Hox, Moerbeek, & van de Schoot (2018). Analyses were conducted using the lme4 package (Bates, Machler, Boker, & Walker, 2015) in R version 3.5.0 (R Core Team, 2018) and RStudio version 1.1.453 (RStudio Team, 2018). Full details and results of quantitative analyses are available upon request. 
+
+
+
+### Notes on Methods Section 
+
+* Add short descriptors to the factor descriptions used above to the measurement section.
+
+
+## Results
+
+
+```{r, include = FALSE}
+
+Model.2.REML <- lme4::lmer(Score ~ Ethnic_Code + 
+                             Time +
+                             (1|ID),
+                         data = PICK_clean_longlong2,
+                         REML = TRUE)
+
+Average_Gain_b <- summary(Model.2.REML)
+
+Average_Gain_b <- Average_Gain_b$coefficients[4]
+
+# Average_Gain_t <- summary(Model.2.REML)
+# 
+# Average_Gain_t <- Average_Gain_t$coefficients[11,3]
+
+
+# Coeficients in final model using K-R method
+
+final.coef <- summary(Model.9.RE.KR)$coefficients %>%
+    data.frame() %>%
+    tibble::rownames_to_column()
+    # dplyr::mutate(p = formatC(`Pr...t..`, format = "f", digits = 3))
+
+# Note:: all coeficients are for the reference group. In terms of significant predictors this is participants who are caucasian, attended only one session, no prior exposure, and for the rel.skills outcome.
+
+# Slope of Time for Different Outcomes
+
+hrs.coef <- summary(lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                             data = PICK_clean_longlong2 %>% 
+                                 dplyr::mutate(Domain = factor(Domain,
+                                                               levels = c("Healthy_Rel_Skills",
+                                                                          "Partner_Selection",
+                                                                          "Past_Rel_Behav",
+                                                                          "Rel_Behav_Attit"),
+                                                               labels = c("Healthy Rel. Skills",
+                                                                          "Partner Selection",
+                                                                          "Past Rel. Beh.",
+                                                                          "Rel. Beh. and Attitudes"))),
+                                               REML = TRUE), 
+                             ddf = "Kenward-Roger")$coefficients %>% 
+                        data.frame() %>% 
+                        tibble::rownames_to_column() %>% 
+                        dplyr::filter(rowname == "TimePost")
+
+ps.coef <- summary(lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                             data = PICK_clean_longlong2 %>% 
+                                 dplyr::mutate(Domain = factor(Domain,
+                                                               levels = c("Partner_Selection",
+                                                                          "Healthy_Rel_Skills",
+                                                                          "Past_Rel_Behav",
+                                                                          "Rel_Behav_Attit"),
+                                                               labels = c("Partner Selection",
+                                                                          "Healthy Rel. Skills",
+                                                                          "Past Rel. Beh.",
+                                                                          "Rel. Beh. and Attitudes"))),
+                                               REML = TRUE), 
+                             ddf = "Kenward-Roger")$coefficients %>% 
+                        data.frame() %>% 
+                        tibble::rownames_to_column() %>% 
+                        dplyr::filter(rowname == "TimePost")
+
+
+prb.coef <- summary(lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                             data = PICK_clean_longlong2 %>% 
+                                 dplyr::mutate(Domain = factor(Domain,
+                                                               levels = c("Past_Rel_Behav",
+                                                                          "Partner_Selection",
+                                                                          "Healthy_Rel_Skills",
+                                                                          "Rel_Behav_Attit"),
+                                                               labels = c("Past Rel. Beh.",
+                                                                          "Partner Selection",
+                                                                          "Healthy Rel. Skills",
+                                                                          "Rel. Beh. and Attitudes"))),
+                                               REML = TRUE), 
+                             ddf = "Kenward-Roger")$coefficients %>% 
+                        data.frame() %>% 
+                        tibble::rownames_to_column() %>% 
+                        dplyr::filter(rowname == "TimePost")
+
+rba.coef <- summary(lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                             data = PICK_clean_longlong2 %>% 
+                                 dplyr::mutate(Domain = factor(Domain,
+                                                               levels = c("Rel_Behav_Attit",
+                                                                          "Past_Rel_Behav",
+                                                                          "Partner_Selection",
+                                                                          "Healthy_Rel_Skills"),
+                                                               labels = c("Rel. Beh. and Attitudes",
+                                                                          "Past Rel. Beh.",
+                                                                          "Partner Selection",
+                                                                          "Healthy Rel. Skills"))),
+                                               REML = TRUE), 
+                             ddf = "Kenward-Roger")$coefficients %>% 
+                        data.frame() %>% 
+                        tibble::rownames_to_column() %>% 
+                        dplyr::filter(rowname == "TimePost")
+
+
+# Slope of Time for Different Exposure
+
+exposure.none.coef  <-  hrs.coef
+
+
+exposure.somealot.coef <- summary(lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                             data = PICK_clean_longlong2 %>% 
+                                 dplyr::mutate(Domain = factor(Domain,
+                                                               levels = c("Healthy_Rel_Skills",
+                                                                          "Partner_Selection",
+                                                                          "Past_Rel_Behav",
+                                                                          "Rel_Behav_Attit"),
+                                                               labels = c("Healthy Rel. Skills",
+                                                                          "Partner Selection",
+                                                                          "Past Rel. Beh.",
+                                                                          "Rel. Beh. and Attitudes"))) %>% 
+                                 dplyr::mutate(Prior_RshpEducation_collapsed = factor(Prior_RshpEducation_collapsed,
+                                                                                      levels = c("Some/A lot",
+                                                                                                 "None"),
+                                                                                      labels = c("Some/A lot",
+                                                                                                 "None"))),
+                                               REML = TRUE), 
+                             ddf = "Kenward-Roger")$coefficients %>% 
+                        data.frame() %>% 
+                        tibble::rownames_to_column() %>% 
+                        dplyr::filter(rowname == "TimePost")
+
+
+# Slope of Time for Different Dosages
+
+dosage.onesession.coef  <-  hrs.coef
+
+dosage.twosession.coef <- summary(lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                             data = PICK_clean_longlong2 %>% 
+                                 dplyr::mutate(Number_Attended = factor(Number_Attended,
+                                                                        levels = c("Two Sessions",
+                                                                                   "One Session",
+                                                                                   "Three Sessions"),
+                                                                        labels = c("Two Sessions",
+                                                                                   "One Session",
+                                                                                   "Three Sessions"))),
+                                               REML = TRUE), 
+                             ddf = "Kenward-Roger")$coefficients %>% 
+                        data.frame() %>% 
+                        tibble::rownames_to_column() %>% 
+                        dplyr::filter(rowname == "TimePost")
+
+dosage.threesession.coef <- summary(lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                             data = PICK_clean_longlong2 %>% 
+                                 dplyr::mutate(Number_Attended = factor(Number_Attended,
+                                                                        levels = c("Three Sessions",
+                                                                                   "One Session",
+                                                                                   "Two Sessions"),
+                                                                        labels = c("Three Sessions",
+                                                                                   "One Session",
+                                                                                   "Two Sessions"))),
+                                               REML = TRUE), 
+                             ddf = "Kenward-Roger")$coefficients %>% 
+                        data.frame() %>% 
+                        tibble::rownames_to_column() %>% 
+                        dplyr::filter(rowname == "TimePost")
+
+# Race Ethnicity
+
+
+race.caucasian.coef  <-  hrs.coef
+
+race.hisp.coef <- summary(lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                             data = PICK_clean_longlong2 %>% 
+                                 dplyr::mutate(Ethnic_Code = factor(Ethnic_Code,
+                                                                        levels = c("Hispanic/Latino",
+                                                                                   "Caucasian",
+                                                                                   "Other"),
+                                                                        labels = c("Hispanic/Latino",
+                                                                                   "Caucasian",
+                                                                                   "Other"))),
+                                               REML = TRUE), 
+                             ddf = "Kenward-Roger")$coefficients %>% 
+                        data.frame() %>% 
+                        tibble::rownames_to_column() %>% 
+                        dplyr::filter(rowname == "TimePost")
+
+
+race.other.coef <- summary(lmerTest::lmer(Score ~ Ethnic_Code + 
+                             Time + Domain + Time:Domain +
+                             Prior_RshpEducation_collapsed + Number_Attended + 
+                             Time:Prior_RshpEducation_collapsed + 
+                             Time:Number_Attended + 
+                             Time:Ethnic_Code + 
+                             # Time:Education_3cat + 
+                             # Time:Income_10K +
+                             # Time:Divorced_Dichotomous +
+                             (1|ID),
+                             data = PICK_clean_longlong2 %>% 
+                                 dplyr::mutate(Ethnic_Code = factor(Ethnic_Code,
+                                                                        levels = c("Other",
+                                                                                   "Hispanic/Latino",
+                                                                                   "Caucasian"),
+                                                                        labels = c("Other",
+                                                                                   "Hispanic/Latino",
+                                                                                   "Caucasian"))),
+                                               REML = TRUE), 
+                             ddf = "Kenward-Roger")$coefficients %>% 
+                        data.frame() %>% 
+                        tibble::rownames_to_column() %>% 
+                        dplyr::filter(rowname == "TimePost")
+
+
+timeXprior <- final.coef %>% 
+    dplyr::filter(rowname == "TimePost:Prior_RshpEducation_collapsedSome/A lot")
+
+timeXtwosess <- final.coef %>% 
+    dplyr::filter(rowname == "TimePost:Number_AttendedTwo Sessions")
+
+timeXthreesess <- final.coef %>% 
+    dplyr::filter(rowname == "TimePost:Number_AttendedThree Sessions")
+
+
+timeXhisp <- final.coef %>% 
+    dplyr::filter(rowname == "Ethnic_CodeHispanic/Latino:TimePost")
+
+
+timeXother <- final.coef %>% 
+    dplyr::filter(rowname == "Ethnic_CodeOther:TimePost")
+
+
+# final.coef %>% 
+#     dplyr::mutate(Estimate = formatC(Estimate, format= "f", digits = 3)) %>% 
+#     dplyr::mutate(Std..Error = formatC(Std..Error, format= "f", digits = 3)) %>% 
+#     dplyr::mutate(df = formatC(df, format= "f", digits = 3)) %>% 
+#     dplyr::mutate(t.value = formatC(t.value, format= "f", digits = 3)) %>% 
+#     dplyr::mutate(Pr...t.. = formatC(Pr...t.., format= "f", digits = 3))
+#     
+# hrs.coef
+# ps.coef
+# prb.coef
+# rba.coef
+# 
+# timeXprior
+# timeXtwosess
+# timeXthreesess
+# timeXhisp
+# timeXother
+
+```
+
+
+
+A series of nested multilevel regression models (RI MLM) were compared and indicated that, on average, participants gained in knowledge and skills ($\beta$ = `r round(Average_Gain_b,2)`, $\chi^2$ = `r format_chi(compar.time$Chisq[2])`, *df* = `r compar.time$"Chi Df"[2]`, `r pvaluer_anova(compar.time$"Pr(>Chisq)"[2])`). The effect of the program varied by outcome ($\chi^2$ = `r format_chi(compar.domain.int$Chisq[2])`, *df* = `r compar.domain.int$"Chi Df"[2]`, `r pvaluer_anova(compar.domain.int$"Pr(>Chisq)"[2])`), prior exposure to relationship education ($\chi^2$ = `r format_chi(compar.exp.int$Chisq[2])`, *df* = `r compar.exp.int$"Chi Df"[2]`, `r pvaluer_anova(compar.exp.int$"Pr(>Chisq)"[2])`), dosage ($\chi^2$ = `r format_chi(compar.dos.int$Chisq[2])`, *df* = `r compar.dos.int$"Chi Df"[2]`, `r pvaluer_anova(compar.dos.int$"Pr(>Chisq)"[2])`), and race/ethnicity ($\chi^2$ = `r format_chi(compar.race.time.int$Chisq[2])`, *df* = `r compar.race.time.int$"Chi Df"[2]`, `r pvaluer_anova(compar.race.time.int$"Pr(>Chisq)"[2])`)
+
+
+The average gains in knowledge and skills for each outcome were as follows. Significance of regression coefficients was tested using the lmerTest package (Kuznetsova, Brockhoff, & Christensen, 2017) using Kenward-Roger's method. Each covariate was held at its reference group -- i.e., briefly, in terms of significant covariates: a Caucasian participant who attended only one session and had not previously received relationship education: Skills, $\beta$ = `r formatC(hrs.coef$Estimate, format = "f", digits = 3)`, *t* = `r formatC(hrs.coef$t.value, format = "f", digits = 3)`, *df* = `r formatC(hrs.coef$df, format = "f", digits = 3)`, `r pvaluer(hrs.coef$Pr...t..)`; Partner Selection, $\beta$ = `r formatC(ps.coef$Estimate,format = "f", digits = 3)`, *t* = `r formatC(ps.coef$t.value, format = "f", digits = 3)`, *df* = `r formatC(ps.coef$df, format = "f", digits = 3)`, `r pvaluer(ps.coef$Pr...t..)`; Relationship Patterns, $\beta$ = `r formatC(prb.coef$Estimate,format = "f", digits = 3)`, *t* = `r formatC(prb.coef$t.value, format = "f", digits = 3)`, *df* = `r formatC(prb.coef$df, format = "f", digits = 3)`, `r pvaluer(prb.coef$Pr...t..)`; and Behavior and Attitudes, $\beta$ = `r formatC(rba.coef$Estimate,format = "f", digits = 3)`, *t* = `r formatC(rba.coef$t.value, format = "f", digits = 3)`, *df* = `r formatC(rba.coef$df, format = "f", digits = 3)`, `r pvaluer(rba.coef$Pr...t..)`. The program had a significant effect on all outcomes even after controlling for age, ethnicity, prior relationship education, the number of classes attended (dosage), education level, financial worry, gender, and divorce history. 
+
+Our analyses also tested whether the effect of the program varied by prior experience with relationship education, dosage, and (using a Bonferroni correction) demographic covariates. All interactions are shown in Figure 1. Participants who had previously received relationship education through courses, counseling, workshops, etc. gained less than those who had not ($\beta$ = `r formatC(timeXprior$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXprior$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXprior$df, format = "f", digits = 3)`, `r pvaluer(timeXprior$Pr...t..)`). Gains were greater for participants who attended three sessions compared to only one ($\beta$ = `r formatC(timeXthreesess$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXthreesess$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXthreesess$df, format = "f", digits = 3)`, `r pvaluer(timeXthreesess$Pr...t..)`). Gains did not differ for participants who attended two sessions compared to only one ($\beta$ = `r formatC(timeXtwosess$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXtwosess$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXtwosess$df, format = "f", digits = 3)`, `r pvaluer(timeXtwosess$Pr...t..)`). 
+
+The only demographic covariate that significantly moderated the effect of the program was race/ethnicity. There was no difference in the effect of the program for participants who identified as Hispanic/Latino than for participants who identified as Caucasian ($\beta$ = `r formatC(timeXhisp$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXhisp$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXhisp$df, format = "f", digits = 3)`, `r pvaluer(timeXhisp$Pr...t..)`). However, the program had a diminished effect for participants who identified as another race/ethnicity than for participants who identified as Caucasian ($\beta$ = `r formatC(timeXother$Estimate, format = "f", digits = 3)`, *t* = `r formatC(timeXother$t.value, format = "f", digits = 3)`, *df* = `r formatC(timeXother$df, format = "f", digits = 3)`, `r pvaluer(timeXother$Pr...t..)`). 
+
+## Limitations
+
+* "What he/she learned from his/her family when growing up" appears to load with the item, "How he/she fights when angry", "How he/she reacts when my feelings are hurt", and "What he/she believes about right and wrong" instead of the factors it is currently associated with.
+
+* If not already included, the extremely high level of skewness ("ceiling effect") at the item level for most items at post should be acknowledged. The residuals of the model look fine, indicating that the skewness at the construct level is not an issue. However, this doesn't negate the skewness at the item level and that it limits how much information the measure gives us and how much growth indivduals could experience.
+
+* Might consider reporting congeneric reliabilty, which is more appropriate for skewed data, in addiiton to Cronbach's alpha.
+
+## References
+
+Bates, D., Machler, M., Boker, B., & Walker, S. (2015). Fitting Linear Mixed-Effects Models Using lme4. *Journal of Statistical Software, 67*(1), 1 - 48. doi: 10.18637/jss.v067.i01
+
+Hox, J. J., Moerbeek, M., & van de Schoot, R. (2018). *Multilevel analysis: Techniques and applications.* New York: Routledge.
+
+Kuznetsova, A., Brockhoff, P. B., & Christensen, R. H. B. (2017). lmerTest Package: Tests in Linear Mixed Effects Models. *Journal of Statistical Software, 82*(13). https://doi.org/10.18637/jss.v082.i13
+
+R Core Team (2018). *R: A language and environment for statistical computing.* R Foundation for Statistical Computing, Vienna, Austria. URL: http://www.R-project.org/.
+
+RStudio Team (2018). *RStudio: Integrated Development for R.* RStudio, Inc., Boston, MA. URL: http://www.rstudio.com/.
+
+### Notes on Results Section 
+
+* Make sure methods section says "Another race" rather than "Other"
+
+### Figure 1. Effect of Program by Outcome, Prior Relationship Education, Dosage, and Race/Ethnicity
+
+```{r, echo = FALSE}
+gg1 <- Model.9.RE %>% 
+          emmeans::emmeans(~Time | Domain) %>% 
+    data.frame() %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("RPre",
+                                           "Post"),
+                                labels = c("Retrospective Pre",
+                                           "Post"))) %>% 
+    dplyr::mutate(Domain = factor(Domain,
+                               levels = c("Healthy_Rel_Skills",
+                                          "Partner_Selection",
+                                          "Past_Rel_Behav",
+                                          "Rel_Behav_Attit"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(Outcome = factor(Domain,
+                               levels = c("Rel. Beh. and Attitudes",
+                                          "Past Rel. Beh.",
+                                          "Partner Selection",
+                                          "Healthy Rel. Skills"),
+                               labels = c("1",
+                                          "2",
+                                          "3", 
+                                          "4"))) %>% 
+    dplyr::mutate(`Estimated Score` = emmean) %>%
+    dplyr::mutate(Assessment = Time) %>% 
+    ggplot(aes(x = Assessment,
+               y = `Estimated Score`,
+               group = Outcome)) +
+    # geom_errorbar(position=position_dodge(width=0.2),
+    #               aes(ymin = lower.CL,
+    #                   ymax = upper.CL,
+    #                   linetype = Outcome,
+    #                   group = Outcome,
+    #                   color = Outcome),
+    #               width = .2) +
+    # geom_errorbar(position=position_dodge(width=0.2),
+    #               aes(ymin = `Estimated Score` - se,
+    #                   ymax = `Estimated Score` + se,
+    #                   linetype = "solid",
+    #                   color = Outcome),
+    #               width = .2) +
+    scale_y_continuous(breaks=seq(3.25,4.75,.5),
+                       limits = c(3.25,4.75))   +
+        # ylim(3.0,4.6) +
+    # scale_y_continuous(breaks=seq(3.0,4.6,.2))   +
+    geom_point(#position=position_dodge(width=0.2),
+               aes(color = Outcome,
+                   shape = Outcome)) +
+    geom_line(#position=position_dodge(width=0.2),
+              aes(x = Time,
+               y = `Estimated Score`,
+               group = Outcome,
+               linetype = Outcome,
+               color = Outcome))+
+    # guides(linetype = FALSE) +
+    ggtitle("Effect of Program by Outcome") + 
+    theme_bw() +
+        xlab(NULL) +
+    # xlim(3.2, 4.6)
+    scale_linetype_manual(values=c(4,2,1,3))  +
+    theme(legend.position = c(0.13,.60),
+          legend.text=element_text(size=10),
+          legend.title=element_text(size=10),
+          axis.text=element_text(size=10),
+        axis.title=element_text(size=10),
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank()) +
+        theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    plot.title = element_text(size=10)) 
+# gg1
+
+
+
+
+
+
+gg2 <- Model.9.RE %>% 
+          emmeans::emmeans(~Time | Prior_RshpEducation_collapsed) %>% 
+    data.frame() %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("RPre",
+                                           "Post"),
+                                labels = c("Retrospective Pre",
+                                           "Post"))) %>% 
+    dplyr::mutate(Amount = factor(Prior_RshpEducation_collapsed,
+                               levels = c("Some/A lot",
+                                          "None"),
+                               labels = c("Some/A lot",
+                                          "None"))) %>% 
+    dplyr::mutate(`Estimated Score` = emmean) %>%
+    dplyr::mutate(Assessment = Time) %>% 
+    ggplot(aes(x = Assessment,
+               y = `Estimated Score`,
+               group = Amount)) +
+    # geom_errorbar(#position=position_dodge(width=0.2),
+    #               aes(ymin = lower.CL,
+    #                   ymax = upper.CL,
+    #                   linetype = Amount,
+    #                   group = Amount,
+    #                   color = Amount),
+    #               width = .2) +
+    # scale_y_continuous(breaks=seq(3.2,4.6,.2))   +
+    scale_y_continuous(#breaks=seq(3.25,4.75,.25),
+        breaks = NULL,
+                       limits = c(3.25,4.75))   +
+        # ylim(3.0,4.6) +
+    geom_point(#position=position_dodge(width=0.2),
+               aes(color = Amount,
+                   shape = Amount)) +
+    geom_line(#position=position_dodge(width=0.2),
+              aes(x = Time,
+               y = `Estimated Score`,
+               group = Amount,
+               linetype = Amount,
+               color = Amount))+
+    # guides(linetype = FALSE) +
+    ggtitle("Effect of Program by Prior Relationship Education") + 
+    theme_bw() +
+    scale_linetype_manual(values=c(1,3)) +
+        ylab(NULL) +
+    xlab(NULL) +
+    
+    theme(legend.position = c(0.17,.74),
+          legend.text=element_text(size=10),
+          legend.title=element_text(size=10),
+          axis.text=element_text(size=10),
+        axis.title=element_text(size=10), 
+        axis.text.x = element_blank(),
+        axis.ticks = element_blank()) +
+        theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    plot.title = element_text(size=10)) 
+# gg2
+
+
+
+
+
+gg3 <- Model.9.RE %>% 
+          emmeans::emmeans(~Time | Number_Attended) %>% 
+    data.frame() %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("RPre",
+                                           "Post"),
+                                labels = c("Retrospective Pre",
+                                           "Post"))) %>% 
+    dplyr::mutate(Attendance = factor(Number_Attended,
+                               levels = c("One Session",
+                                          "Two Sessions",
+                                          "Three Sessions"),
+                               labels = c("1 of 3",
+                                          "2 of 3",
+                                          "3 of 3"))) %>% 
+    dplyr::mutate(`Estimated Score` = emmean) %>%
+    dplyr::mutate(Assessment = Time) %>% 
+    ggplot(aes(x = Assessment,
+               y = `Estimated Score`,
+               group = Attendance)) +
+    # geom_errorbar(position=position_dodge(width=0.2),
+    #               aes(ymin = lower.CL,
+    #                   ymax = upper.CL,
+    #                   linetype = Attendance,
+    #                   group = Attendance,
+    #                   color = Attendance),
+    #               width = .2) +
+    scale_y_continuous(breaks=seq(3.25,4.75,.5),
+                       limits = c(3.25,4.75))   +
+        # ylim(3.0,4.6) +
+
+    # scale_y_continuous(breaks=seq(3.2,4.6,.2))   +
+    geom_point(#position=position_dodge(width=0.2),
+               aes(color = Attendance,
+                   shape = Attendance)) +
+    geom_line(#position=position_dodge(width=0.2),
+              aes(x = Time,
+               y = `Estimated Score`,
+               group = Attendance,
+               linetype = Attendance,
+               color = Attendance))+
+    # guides(linetype = FALSE) +
+    ggtitle("Effect of Program by Dosage (Sessions Attended)") + 
+    theme_bw() +
+        xlab(NULL) +
+
+    scale_linetype_manual(values=c(3,2,1)) +
+    theme(legend.position = c(0.16,.63),
+          legend.text=element_text(size=10),
+          legend.title=element_text(size=10),
+          axis.text=element_text(size=10),
+        axis.title=element_text(size=10)) +
+        theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    plot.title = element_text(size=10)) 
+# gg3
+
+
+
+
+
+gg4 <- Model.9.RE %>% 
+          emmeans::emmeans(~Time | Ethnic_Code) %>% 
+    data.frame() %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("RPre",
+                                           "Post"),
+                                labels = c("Retrospective Pre",
+                                           "Post"))) %>% 
+    dplyr::mutate(`Racial/Ethnic Group` = factor(Ethnic_Code,
+                               levels = c("Other",
+                                          "Caucasian",
+                                          "Hispanic/Latino"),
+                               labels = c("1",
+                                          "2",
+                                          "3"))) %>% 
+    dplyr::mutate(`Estimated Score` = emmean) %>%
+    dplyr::mutate(Assessment = Time) %>% 
+    ggplot(aes(x = Assessment,
+               y = `Estimated Score`,
+               group = `Racial/Ethnic Group`)) +
+    # geom_errorbar(position=position_dodge(width=0.2),
+    #               aes(ymin = lower.CL,
+    #                   ymax = upper.CL,
+    #                   linetype = `Racial/Ethnic Group`,
+    #                   group = `Racial/Ethnic Group`,
+    #                   color = `Racial/Ethnic Group`),
+    #               width = .2) +
+    scale_y_continuous(#breaks=seq(3.25,4.75,.25),
+        breaks = NULL,
+                       limits = c(3.25,4.75))   +
+        # ylim(3.0,4.6) +
+
+    geom_point(#position=position_dodge(width=0.2),
+               aes(color = `Racial/Ethnic Group`,
+                   shape = `Racial/Ethnic Group`)) +
+    geom_line(#position=position_dodge(width=0.2),
+              aes(x = Time,
+               y = `Estimated Score`,
+               group = `Racial/Ethnic Group`,
+               linetype = `Racial/Ethnic Group`,
+               color = `Racial/Ethnic Group`))+
+    # guides(linetype = FALSE) +
+    ggtitle("Effect of Program by Race/Ethnicity") + 
+    theme_bw() +
+    scale_linetype_manual(values=c(3,2,1)) +
+    ylab(NULL) +
+        xlab(NULL) +
+
+    theme(legend.position = c(0.20,.63),
+          legend.text=element_text(size=10),
+          legend.title=element_text(size=10),
+          axis.text=element_text(size=10),
+        axis.title=element_text(size=10)) +
+    theme(axis.line = element_line(colour = "black"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    plot.title = element_text(size=10)) 
+# gg4
+
+
+
+
+
+
+
+Interactions <- ggpubr::ggarrange(gg1, gg2, gg3, gg4, 
+          # labels = c("A", "B", "C", "D"),
+          ncol = 2, nrow = 2) 
+
+
+ggsave("Figs/Interactions.png", device = "png",
+       width=8.5, height=6.5, units='in')
+
+
+
+```
+
+`r knitr::include_graphics("Figs/Interactions.png")`
+
+*Note.* Outcome 1: Relationship Behavior and Attitudes, Outcome 2: Past Relationship Behavior, Outcome 3: Partner Selection, Outcome 4: Healthy Relationship Skills, Racial/Ethnic Group 1: Another Race/Ethnicity, Racial/Ethnic Group 2: Caucasian, and Racial/Ethnic Group 3: Hispanic/Latino.
+
+
+```{r, include = FALSE}
+
+save.image("Data/environment.Rdata")
+
+```
+

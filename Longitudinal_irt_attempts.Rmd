@@ -1,0 +1,421 @@
+---
+title: "Longitudinal IRT Attempts"
+author: "Daniel J Laxman"
+date: "June 27, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+
+
+```{r}
+
+
+lm(fscores.HRS.post ~ fscores.HRS.pre + Age + Gender + Ethnicity + Education_collapsed,
+data = PICK_clean %>% 
+    dplyr::left_join(fscores.HRS.pre, by = "ID") %>%
+    dplyr::left_join(fscores.HRS.post, by = "ID") ) %>% summary()
+
+
+t.test(fscores.HRS.post, fscores.HRS.pre, paired=TRUE,
+       data = PICK_clean %>% 
+           dplyr::left_join(fscores.HRS.pre, by = "ID") %>%
+           dplyr::left_join(fscores.HRS.post, by = "ID")) 
+```
+
+```{r}
+fscores.HRS.pre %>%
+    dplyr::left_join(fscores.HRS.post, by = "ID") %>% 
+    furniture::long(c("fscores.HRS.pre", "fscores.HRS.post"),
+                id = "ID", 
+                v.names = "Score", 
+                timevar = "Time", 
+                times = c("Rpre", "Post"))
+
+                         
+
+boxplot(Score~Time,data=fscores.HRS.pre %>%
+    dplyr::left_join(fscores.HRS.post, by = "ID") %>% 
+    furniture::long(c("fscores.HRS.pre", "fscores.HRS.post"),
+                id = "ID", 
+                v.names = "Score", 
+                timevar = "Time", 
+                times = c("Rpre", "Post"))) 
+```
+
+
+```{r}
+fscores.HRS.pre %>%
+    dplyr::left_join(fscores.HRS.post, by = "ID") %>% 
+    dplyr::mutate(Change = fscores.HRS.post - fscores.HRS.pre) %>%
+    dplyr::mutate(Change = ifelse(Change <=0, -1,
+                                  ifelse(Change > 0, 1, NA))) %>% 
+    dplyr::mutate(Change = factor(Change)) %>% 
+    # furniture::tableF(Change)
+    furniture::table1()
+    furniture::long(c("fscores.HRS.pre", "fscores.HRS.post"),
+                id = "ID", 
+                v.names = "Score", 
+                timevar = "Time", 
+                times = c("Rpre", "Post")) %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("Rpre", "Post"))) %>% 
+    ggplot2::ggplot(x = Time, y = Score) +
+    ggplot2::geom_line(aes(x = Time, 
+                           y = Score,
+                           group = ID,
+                           color = Change))
+```
+
+
+
+```{r}
+fscores.HRS.pre %>%
+    dplyr::left_join(fscores.HRS.post, by = "ID") %>% 
+    dplyr::mutate(Change = fscores.HRS.post - fscores.HRS.pre) %>% 
+    dplyr::mutate(Change = ifelse(Change <=0, -1,
+                                  ifelse(Change > 0, 1, NA))) %>% 
+    dplyr::mutate(Change = factor(Change)) %>% 
+    furniture::long(c("fscores.HRS.pre", "fscores.HRS.post"),
+                id = "ID", 
+                v.names = "Score", 
+                timevar = "Time", 
+                times = c("Rpre", "Post")) %>% 
+    ggplot2::ggplot(aes(x = Score))  + 
+    geom_histogram(color="black", fill="white",binwidth=.1) +
+    geom_vline(aes(xintercept=mean(Score, na.rm=T)),   # Ignore NA values for mean
+               color="red", linetype="dashed", size=1) +
+    facet_grid(~Time)
+```
+
+
+
+
+
+```{r}
+PICK_clean %>% 
+    furniture::tableX(Healthy_Rel_Before.3c, Healthy_Rel.3c)
+
+
+
+PICK_clean %>% 
+    furniture::tableX(Communicate_Before.3c, Communicate.3c)
+
+
+
+PICK_clean %>% 
+    furniture::tableX(ConflictManagement_Before.3c, ConflictManagement.3c)
+
+```
+
+Healthy_Rel_Before.3c, Communicate_Before.3c, ConflictManagement_Before.3c, Healthy_Rel.3c, Communicate.3c, ConflictManagement.3c
+
+
+
+
+```{r}
+PICK_clean %>% 
+    dplyr::mutate(Change = Healthy_Rel_Skills - Healthy_Rel_Skills_Before) %>% 
+    dplyr::mutate(Change = ifelse(Change <=0, -1,
+                                  ifelse(Change > 0, 1, NA))) %>% 
+    dplyr::mutate(Change = factor(Change)) %>% 
+    dplyr::mutate(Trajectory = dplyr::case_when(Healthy_Rel_Skills_Before <=3 &
+                                                    Healthy_Rel_Skills <= 4 ~ 0,
+                                                Healthy_Rel_Skills_Before > 3 &
+                                                    Healthy_Rel_Skills <= 4 ~ 1,
+                                                Healthy_Rel_Skills_Before <=3 &
+                                                    Healthy_Rel_Skills > 4 ~ 2,
+                                                Healthy_Rel_Skills_Before > 3 &
+                                                    Healthy_Rel_Skills >4 ~ 3)) %>% 
+    dplyr::mutate(Trajectory = factor(Trajectory)) %>% 
+    furniture::long(c("Healthy_Rel_Skills_Before", "Healthy_Rel_Skills"),
+                id = "ID", 
+                v.names = "Score", 
+                timevar = "Time", 
+                times = c("Rpre", "Post")) %>% 
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("Rpre", "Post"))) %>% 
+    ggplot2::ggplot(x = Time, y = Score) +
+    ggplot2::geom_line(aes(x = Time, 
+                           y = Score,
+                           group = ID,
+                           color = Trajectory))
+```
+
+Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost
+                  
+                  
+                  
+```{r}
+
+
+
+# Two-tier model
+#simulate data
+set.seed(1234)
+a <- matrix(c(
+0,1,0.5,NA,NA,
+0,1,0.5,NA,NA,
+0,1,0.5,NA,NA,
+0,1,0.5,NA,NA,
+0,1,0.5,NA,NA,
+0,1,NA,0.5,NA,
+0,1,NA,0.5,NA,
+0,1,NA,0.5,NA,
+1,0,NA,0.5,NA,
+1,0,NA,0.5,NA,
+1,0,NA,0.5,NA,
+1,0,NA,NA,0.5,
+1,0,NA,NA,0.5,
+1,0,NA,NA,0.5,
+1,0,NA,NA,0.5,
+1,0,NA,NA,0.5),
+ncol=5,byrow=TRUE)
+
+
+d <- matrix(rnorm(16))
+items <- rep('2PL', 16)
+sigma <- diag(5)
+sigma[1,2] <- sigma[2,1] <- .4
+dataset <- simdata(a,d,2000,itemtype=items,sigma=sigma)
+specific <- c(rep(1,5),rep(2,6),rep(3,5))
+model <- '
+G1 = 1-8
+G2 = 9-16
+COV = G1*G2'
+#quadpts dropped for faster estimation, but not as precise
+simmod <- bfactor(dataset, specific, model, quadpts = 9, TOL = 1e-3)
+coef(simmod, simplify=TRUE)
+summary(simmod)
+itemfit(simmod, QMC=TRUE)
+M2(simmod, QMC=TRUE)
+residuals(simmod, QMC=TRUE)
+```
+           
+           
+           
+```{r}
+dat <- PICK_clean %>% 
+    dplyr::select(Healthy_Rel_Before.3n, Communicate_Before.3n, ConflictManagement_Before.3n, 
+                  Healthy_Rel.3n, Communicate.3n, ConflictManagement.3n) %>% 
+    dplyr::mutate(valid.pre = dgen::row_nvalid(Healthy_Rel_Before.3n, Communicate_Before.3n, ConflictManagement_Before.3n)) %>% 
+    dplyr::mutate(valid.post = dgen::row_nvalid(Healthy_Rel.3n, Communicate.3n, ConflictManagement.3n)) %>% 
+        dplyr::filter(valid.pre !=0) %>% 
+        dplyr::filter(valid.post !=0) %>% 
+    dplyr::select(Healthy_Rel_Before.3n, Communicate_Before.3n, ConflictManagement_Before.3n, 
+                  Healthy_Rel.3n, Communicate.3n, ConflictManagement.3n)
+
+model <- 'Time1 = 1-3
+          Time2 = 4-6
+          COV = Time1*Time2
+          MEAN = Time1'
+
+
+```
+
+
+```{r}
+
+itemloadings <- rep(1:3, times = 2)
+
+itemloadings
+
+
+```
+
+```{r}
+
+#construct constraints dynatically
+#obtain starting values
+sv <- mirt::bfactor(dat, itemloadings, model, pars='values')
+
+
+sv %>% dplyr::filter(est == TRUE)
+
+
+
+```
+
+
+```{r}
+
+# set up within time constraints
+wtconstr <- sv$parnum[(sv$name == 'a1' | sv$name == 'a2') & sv$est]
+
+sv %>% dplyr::filter(parnum %in% c(wtconstr))
+```
+
+
+```{r}
+
+# create constraint list
+constraints <- list()
+itemnames <- colnames(dat)
+itemnames
+```
+
+
+```{r}
+
+
+pick <- c(0,3)
+for(i in 1:3){
+
+    # accross time item constraints
+    constraints[[paste0('slope.', i)]] <- sv$parnum[sv$name == paste0('a',2+i) & sv$est]
+    for(j in 1:2){
+        constraints[[paste0('intercept.', i, '_', j)]] <- 
+            sv$parnum[sv$name == paste0('d',j) & (sv$item %in% itemnames[pick + i]) & sv$est]
+    }
+
+    #across time constraints
+    constraints[[paste0('Time.', i)]] <- wtconstr[pick + i]
+}
+
+constraints
+
+```
+
+
+```{r}
+sv %>% dplyr::filter(parnum %in% constraints$`slope.1`)
+sv %>% dplyr::filter(parnum %in% constraints$intercept.1_1)
+sv %>% dplyr::filter(parnum %in% constraints$intercept.1_2)
+sv %>% dplyr::filter(parnum %in% constraints$Time.1)
+sv %>% dplyr::filter(parnum %in% constraints$slope.2)
+sv %>% dplyr::filter(parnum %in% constraints$intercept.2_1)
+sv %>% dplyr::filter(parnum %in% constraints$intercept.2_2)
+sv %>% dplyr::filter(parnum %in% constraints$Time.2)
+sv %>% dplyr::filter(parnum %in% constraints$slope.3)
+sv %>% dplyr::filter(parnum %in% constraints$intercept.3_1)
+sv %>% dplyr::filter(parnum %in% constraints$intercept.3_2)
+sv %>% dplyr::filter(parnum %in% constraints$Time.3)
+
+```
+
+
+
+```{r}
+
+
+
+(mod <- mirt::bfactor(dat, itemloadings, model, constrain=constraints, quadpts=7, TOL=1e-3,
+                optimizer = 'nlminb'))
+
+
+mirt::coef(mod, simplify=TRUE)
+
+mirt::coef(mod)$GroupPars[,c('MEAN_2', 'COV_11', 'COV_21', 'COV_22')]
+
+
+
+```
+              
+```{r}
+sv %>% 
+    dplyr::filter(est == TRUE)
+```
+              
+              
+```{r}
+load('longitudinal-IRT.Rdata')
+
+mirt
+```
+          
+          
+```{r}
+mirt::fscores(mod)
+```
+
+
+# Example
+
+```{r}
+library("mirt")
+
+numberItems <- 20
+numberItemLevels <- 2
+
+a <- matrix(rlnorm(numberItems, .2, .2))
+d <- matrix(rnorm(numberItems*numberItemLevels), numberItems)
+d <- t(apply(d, 1, sort, decreasing=TRUE))
+
+#Time 1
+library(mvtnorm)
+set.seed(1)
+Theta <- mvtnorm::rmvnorm(n=1000, 0, matrix(1))
+t1 <- simdata(a, d, N=1000, itemtype="graded", Theta=Theta)
+t2 <- simdata(a, d, N=1000, itemtype="graded", Theta=Theta +.5 + rnorm(nrow(Theta), 0, .3))
+t3 <- simdata(a, d, N=1000, itemtype="graded", Theta=Theta + 1 + rnorm(nrow(Theta), 0, .3))
+
+dat <- data.frame(t1, t2, t3)
+save(dat, file='longitudinal-IRT.Rdata')
+```
+
+
+```{r}
+load('longitudinal-IRT.Rdata')
+head(dat)
+
+model <- 'Time1 = 1-20
+          Time2 = 21-40
+          Time3 = 41-60
+          COV = Time1*Time2*Time3, Time2*Time2, Time3*Time3
+          MEAN = Time2, Time3'
+itemloadings <- rep(1:20, times = 3) 
+
+#construct constraints dynatically
+#obtain starting values
+sv <- bfactor(dat, itemloadings, model, pars='values')
+
+# set up within time constraints
+wtconstr <- sv$parnum[(sv$name == 'a1' | sv$name == 'a2' | sv$name == 'a3') & sv$est]
+
+# create constraint list
+constraints <- list()
+itemnames <- colnames(dat)
+pick <- c(0,20,40)
+for(i in 1:20){
+
+    # accross time item constraints
+    constraints[[paste0('slope.', i)]] <- sv$parnum[sv$name == paste0('a',3+i) & sv$est]
+    for(j in 1:2){
+        constraints[[paste0('intercept.', i, '_', j)]] <- 
+            sv$parnum[sv$name == paste0('d',j) & (sv$item %in% itemnames[pick + i]) & sv$est]
+    }
+
+    #across time constraints
+    constraints[[paste0('Time.', i)]] <- wtconstr[pick + i]
+}
+
+#estimate model (low quadrature just as an example; not as accurate.
+#                Could use as starting values for model with higher quadpts via pars=mod2values(mod))
+(mod <- bfactor(dat, itemloadings, model, constrain=constraints, quadpts=7, TOL=1e-3,
+                optimizer = 'nlminb'))
+
+
+
+```
+
+
+
+
+```{r}
+coef(mod, simplify=TRUE)
+```
+                  
+                  

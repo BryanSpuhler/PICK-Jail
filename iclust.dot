@@ -1,0 +1,19 @@
+digraph ICLUST {
+  rankdir=RL;
+  size="8,6";
+  node [fontname="Helvetica" fontsize=14 shape=box, width=2];
+  edge [fontname="Helvetica" fontsize=12];
+ label = "ICLUST";
+	fontsize=20;
+V1  [label = "Fights_Change"];
+V2  [label = "FeelingsHurt_Change"];
+V3  [label = "RightandWrong_Change"];
+node [shape=ellipse, width ="1"];
+C1-> V3 [ label = 0.79 ];
+C1-> V1 [ label = 0.79 ];
+C2-> C1 [ label = 0.88 ];
+C2-> V2 [ label = 0.86 ];
+C1  [label =   "C1\n  alpha= 0.77\n beta=  0.77\nN= 2"] ;
+C2  [label =   "C2\n  alpha= 0.82\n beta=  0.81\nN= 3"] ;
+{ rank=same;
+V1;V2;V3;}}

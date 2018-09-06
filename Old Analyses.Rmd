@@ -1,0 +1,2978 @@
+---
+title: "PICK Pilot Mixed Methods Evaluation"
+subtitle: "Quantitative Analyses"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  pdf_document: 
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+
+library(tidyverse)
+library(furniture)
+
+load(file="./Data/PICK_clean_long.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean.Rda", verbose = FALSE)
+
+
+PICK_clean_long <- PICK_clean_long %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+
+
+# Functions
+
+cor.mtest <- function(mat, ...) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat<- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+        for (j in (i + 1):n) {
+            tmp <- cor.test(mat[, i], mat[, j], ...)
+            p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+        }
+    }
+  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat
+}
+
+## tableM
+
+tableM = function(.data, ..., resp.opts = NULL){
+  
+  ## Iniital objects
+  .call      = match.call()
+  list_vars  = eval(substitute(list(...)), .data)
+  df         = do.call("data.frame", list_vars)
+  df         = data.frame(df)
+  names(df)  = paste(substitute(list(...)))[-1]
+
+  final_list = list()
+  
+  ## Creating counts
+  for(i in names(df)){
+    
+      var = df[i]
+      ## Summary statistics
+      Freq = table(var, useNA="ifany")
+
+      ## If there is missing, add a blank line below the valids
+      if (any(is.na(var))){
+          names(Freq)[length(names(Freq))] = "Missing_Missing_Missing.Missing"
+          final = data.frame("Var"     = names(Freq),
+                             "Freq"    = as.character(Freq))
+          names(final) = c("Value", i) 
+          final[] = lapply(final, as.character)
+      } else {
+          final = data.frame("Var"     = names(Freq),
+                             "Freq"    = as.character(Freq))
+          names(final) = c("Value", i) 
+          final[] = lapply(final, as.character)
+      }
+  
+  final_list[[i]] = final
+  
+  }
+
+  
+  ## Join all count tables
+  table.part0 <- purrr::reduce(final_list, dplyr::full_join, by = "Value")
+  
+  ## Replace NAs with 0.
+  table.part0[is.na(table.part0)] <- 0
+  ## Make counts numeric, but not labels
+  table.part0[, c(2:ncol(table.part0))] <- sapply(table.part0[, c(2:ncol(table.part0))],
+                                                  as.numeric)
+  ## Removes row of missing values
+  table.part1 <- table.part0[which(table.part0$Value != "Missing_Missing_Missing.Missing"),]
+  ## Adds total (if no missing)/valid total (if missing; name changed below)
+  table.part1 <- janitor::adorn_totals(table.part1, which = "row")
+  
+  # Different approaches are used based on whether there are missing data.      
+  if('Missing_Missing_Missing.Missing' %in% table.part0$Value){
+  
+    # Changes "Total" to "Valid Total" in table.part1
+    table.part1[nrow(table.part1),1] <- "Valid Total"
+    # Caclulates total including missing
+    table.part2 = janitor::adorn_totals(table.part0, which = "row")
+    # Select "Missing" row and "Total" row
+    table.part2 <-  table.part2[which(table.part2$Value == "Missing_Missing_Missing.Missing" | 
+                                         table.part2$Value == "Total"),]
+    # Rename "Missing" row
+    table.part2[1,1] <- "Missing"
+    # Combine table components
+    table.final = rbind(table.part1, "---", table.part2)
+    
+  } else {
+      
+    table.final = table.part1
+    
+  }
+
+  ## Adjusting response options (changing order). Must be spelled correctly. Can include extra levels.  
+  if (!is.null(resp.opts)){ 
+    if ('Missing' %in% table.final$Value){
+      
+      rownames(table.final) = table.final$Value
+      table.final = table.final[c(resp.opts, "Valid Total", "---", "Missing", "Total"), ]
+    
+    } else {
+      
+      rownames(table.final) = table.final$Value
+      table.final = table.final[c(resp.opts, "Total"), ]
+  
+    }
+  }
+  
+  rownames(table.final) <- NULL
+  table.final
+    
+}
+
+
+
+
+```
+
+\newpage
+
+# Data Summary
+
+```{r, include=FALSE}
+PICK_clean %>% 
+        dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`) %>% 
+    dplyr::mutate(in.analysis.sample = factor(in.analysis.sample)) %>% 
+    dplyr::select(Age, 
+                  Age_Decades,
+                  Ethnic_Code, 
+                  Education_collapsed,
+                  Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  FinancialWorry_cat,
+                  Income,
+                  Income_10K,
+                  Number_Attended,
+                  Dosage,
+                  Gender,
+                  Divorced_Dichotomous,
+                  Healthy_Rel_Skills_Change,
+                  Partner_Selection_Change,
+                  Past_Rel_Behav_Change,
+                  Rel_Behav_Attit_Change,
+                  Healthy_Rel_Before.n, Communicate_Before.n, ConflictManagement_Before.n,
+                  Healthy_Rel.n, Communicate.n, ConflictManagement.n,
+                  RightPartner_Before.n, LearnPartner_Before.n, 
+                  PaceRelationship_Before.n, WarningSigns_Before.n,
+                  RightPartner.n, LearnPartner.n, PaceRelationship.n, WarningSigns.n,
+                  LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
+                  GetAlongParents_Before.n, FriendshipsAreLike_Before.n,
+                  LearnedGrowingUp.n, PastRelationships.n, GetAlongParents.n, FriendshipsAreLike.n,
+                  Fights_Before.n, FeelingsHurt_Before.n, RightandWrong_Before.n,
+                  Fights.n, FeelingsHurt.n, RightandWrong.n,
+                  in.analysis.sample) %>% 
+    dplyr::glimpse()
+```
+
+
+## Means and Standard Deviations. Also Testing for Difference in Analytic Sample vs. Full Sample.
+
+```{r, echo=FALSE}
+PICK_clean %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`) %>% 
+    dplyr::mutate(in.analysis.sample = factor(in.analysis.sample)) %>% 
+    dplyr::select(Age_Decades,
+                  Age_Groups,
+                  Ethnic_Code, 
+                  Education_collapsed,
+                  # Income,
+                  Income_10K,
+                  Gender,
+                  Divorced_Dichotomous,
+                  FinancialWorry_cat,
+                  # Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  Number_Attended,
+                  Dosage,
+                  
+                  Healthy_Rel_Skills_Change,
+                  Partner_Selection_Change,
+                  Past_Rel_Behav_Change,
+                  Rel_Behav_Attit_Change,
+                  
+                  Healthy_Rel_Before.n, Communicate_Before.n, ConflictManagement_Before.n,
+                  Healthy_Rel.n, Communicate.n, ConflictManagement.n,
+                  
+                  RightPartner_Before.n, LearnPartner_Before.n, 
+                  PaceRelationship_Before.n, WarningSigns_Before.n,
+                  RightPartner.n, LearnPartner.n, 
+                  PaceRelationship.n, WarningSigns.n,
+                  
+                  LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
+                  GetAlongParents_Before.n, FriendshipsAreLike_Before.n,
+                  LearnedGrowingUp.n, PastRelationships.n, 
+                  GetAlongParents.n, FriendshipsAreLike.n,
+                  
+                  Fights_Before.n, FeelingsHurt_Before.n, RightandWrong_Before.n,
+                  Fights.n, FeelingsHurt.n, RightandWrong.n,
+                  
+                  in.analysis.sample) %>% 
+    furniture::table1(na.rm = FALSE,
+                      digits = 2,
+                      splitby = ~in.analysis.sample,
+                      test = TRUE)
+```
+
+## Testing for Difference in a Larger Analytic Sample (Restricted to complete cases on significant predictors only and at least one outcome) vs. Full Sample.
+
+```{r, echo=FALSE}
+PICK_clean %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`) %>% 
+    dplyr::mutate(in.analysis.sample2 = factor(in.analysis.sample2)) %>% 
+    dplyr::select(
+        Age_Decades,
+                  Age_Groups,
+                  Ethnic_Code,
+                  Education_collapsed,
+                  Income,
+                  Income_10K,
+                  Gender,
+                  Divorced_Dichotomous,
+                  FinancialWorry_cat,
+                  # Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  Number_Attended,
+                  Dosage,
+                  
+                  Healthy_Rel_Skills_Change,
+                  Partner_Selection_Change,
+                  Past_Rel_Behav_Change,
+                  Rel_Behav_Attit_Change,
+                  
+                  Healthy_Rel_Before.n, Communicate_Before.n, ConflictManagement_Before.n,
+                  Healthy_Rel.n, Communicate.n, ConflictManagement.n,
+                  
+                  RightPartner_Before.n, LearnPartner_Before.n, 
+                  PaceRelationship_Before.n, WarningSigns_Before.n,
+                  RightPartner.n, LearnPartner.n, 
+                  PaceRelationship.n, WarningSigns.n,
+                  
+                  LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
+                  GetAlongParents_Before.n, FriendshipsAreLike_Before.n,
+                  LearnedGrowingUp.n, PastRelationships.n, 
+                  GetAlongParents.n, FriendshipsAreLike.n,
+                  
+                  Fights_Before.n, FeelingsHurt_Before.n, RightandWrong_Before.n,
+                  Fights.n, FeelingsHurt.n, RightandWrong.n,
+                  
+                  in.analysis.sample2) %>% 
+    furniture::table1(na.rm = FALSE,
+                      digits = 2,
+                      splitby = ~in.analysis.sample2,
+                      test = TRUE)
+```
+
+
+
+## Correlations
+
+### Outcomes
+
+#### Restrospective Pre-Program
+
+```{r}
+PICK_clean_outcome_pre_corr <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel_Before.n, Communicate_Before.n, ConflictManagement_Before.n,
+
+                  RightPartner_Before.n, LearnPartner_Before.n, 
+                  PaceRelationship_Before.n, WarningSigns_Before.n,
+
+                  LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
+                  GetAlongParents_Before.n, FriendshipsAreLike_Before.n,
+
+                  Fights_Before.n, FeelingsHurt_Before.n, RightandWrong_Before.n) %>% 
+    dplyr::mutate(`Healthy Rel` = Healthy_Rel_Before.n) %>% 
+    dplyr::mutate(`Commun.` = Communicate_Before.n) %>% 
+    dplyr::mutate(`Confl. Man.` = ConflictManagement_Before.n) %>% 
+    dplyr::mutate(`Right Partner` = RightPartner_Before.n) %>% 
+    dplyr::mutate(`Learn Partner` =  LearnPartner_Before.n) %>% 
+    dplyr::mutate(`Pace Rel.` = PaceRelationship_Before.n) %>% 
+    dplyr::mutate(`Warn Signs` = WarningSigns_Before.n) %>% 
+    dplyr::mutate(Learned = LearnedGrowingUp_Before.n) %>% 
+    dplyr::mutate(`Past Rel` = PastRelationships_Before.n) %>% 
+    dplyr::mutate(`Get Along Par.` = GetAlongParents_Before.n) %>% 
+    dplyr::mutate(`Friendships` = FriendshipsAreLike_Before.n) %>% 
+    dplyr::mutate(`Fights` = Fights_Before.n) %>% 
+    dplyr::mutate(`Feelings` = FeelingsHurt_Before.n) %>% 
+    dplyr::mutate(`Right Wrong` = RightandWrong_Before.n) %>% 
+    dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
+                  `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
+                  Learned, `Past Rel`, `Get Along Par.`, `Friendships`,
+                  `Fights`, `Feelings`, `Right Wrong`) %>% 
+    # cor(use = "pairwise.complete.obs")
+    as.matrix() %>% 
+    Hmisc::rcorr(type = "pearson")
+
+
+
+
+# p.mat.pre <- cor.mtest(PICK_clean_outcome_pre_corr)
+
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+
+
+corrplot::corrplot(PICK_clean_outcome_pre_corr$r, 
+         method="color", 
+         col=col(200),  
+         type="upper", 
+         # order="hclust", 
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, #Text label color and rotation
+         # Combine with significance
+         p.mat = PICK_clean_outcome_pre_corr$P, 
+         sig.level = 0.05, 
+         insig = "blank", 
+         # hide correlation coefficient on the principal diagonal
+         diag=FALSE, 
+         number.cex= 0.7,
+         tl.cex = .7,
+         title = "Retrospective Pre-Program Correlations",
+                             mar=c(0,0,1,0))
+
+
+
+```
+
+#### Post-Program Item Level
+
+```{r}
+PICK_clean_outcome_post_corr <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel.n, Communicate.n, ConflictManagement.n,
+
+                  RightPartner.n, LearnPartner.n, 
+                  PaceRelationship.n, WarningSigns.n,
+
+                  LearnedGrowingUp.n, PastRelationships.n, 
+                  GetAlongParents.n, FriendshipsAreLike.n,
+
+                  Fights.n, FeelingsHurt.n, RightandWrong.n) %>% 
+    dplyr::mutate(`Healthy Rel` = Healthy_Rel.n) %>% 
+    dplyr::mutate(`Commun.` = Communicate.n) %>% 
+    dplyr::mutate(`Confl. Man.` = ConflictManagement.n) %>% 
+    dplyr::mutate(`Right Partner` = RightPartner.n) %>% 
+    dplyr::mutate(`Learn Partner` =  LearnPartner.n) %>% 
+    dplyr::mutate(`Pace Rel.` = PaceRelationship.n) %>% 
+    dplyr::mutate(`Warn Signs` = WarningSigns.n) %>% 
+    dplyr::mutate(`Learned` = LearnedGrowingUp.n) %>% 
+    dplyr::mutate(`Past Rel` = PastRelationships.n) %>% 
+    dplyr::mutate(`Get Along Par.` = GetAlongParents.n) %>% 
+    dplyr::mutate(`Friendships` = FriendshipsAreLike.n) %>% 
+    dplyr::mutate(`Fights` = Fights.n) %>% 
+    dplyr::mutate(`Feelings` = FeelingsHurt.n) %>% 
+    dplyr::mutate(`Right Wrong` = RightandWrong.n) %>% 
+    dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
+                  `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
+                  `Learned`, `Past Rel`, `Get Along Par.`, `Friendships`,
+                  `Fights`, `Feelings`, `Right Wrong`) %>% 
+    # cor(use = "pairwise.complete.obs")
+    as.matrix() %>% 
+    Hmisc::rcorr(type = "pearson")
+
+
+
+
+# p.mat.post <- cor.mtest(PICK_clean_outcome_post_corr)
+
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+
+
+corrplot::corrplot(PICK_clean_outcome_post_corr$r, 
+         method="color", 
+         col=col(200),
+         type="upper", 
+         # order="hclust", 
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, #Text label color and rotation
+         # Combine with significance
+         p.mat = PICK_clean_outcome_post_corr$P,
+         sig.level = 0.05, insig = "blank", 
+         # hide correlation coefficient on the principal diagonal
+         diag=FALSE, 
+         number.cex= 0.7,
+         tl.cex = .7,
+         title = "Post-Program Correlations",
+                             mar=c(0,0,1,0))
+```
+
+
+
+
+#### Change
+
+```{r}
+PICK_clean_outcome_change_corr <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel_Change, Communicate_Change, ConflictManagement_Change,
+
+                  RightPartner_Change, LearnPartner_Change, 
+                  PaceRelationship_Change, WarningSigns_Change,
+
+                  LearnedGrowingUp_Change, PastRelationships_Change, 
+                  GetAlongParents_Change, FriendshipsAreLike_Change,
+
+                  Fights_Change, FeelingsHurt_Change, RightandWrong_Change) %>% 
+    dplyr::mutate(`Healthy Rel` = Healthy_Rel_Change) %>% 
+    dplyr::mutate(`Commun.` = Communicate_Change) %>% 
+    dplyr::mutate(`Confl. Man.` = ConflictManagement_Change) %>% 
+    dplyr::mutate(`Right Partner` = RightPartner_Change) %>% 
+    dplyr::mutate(`Learn Partner` =  LearnPartner_Change) %>% 
+    dplyr::mutate(`Pace Rel.` = PaceRelationship_Change) %>% 
+    dplyr::mutate(`Warn Signs` = WarningSigns_Change) %>% 
+    dplyr::mutate(`Learned` = LearnedGrowingUp_Change) %>% 
+    dplyr::mutate(`Past Rel` = PastRelationships_Change) %>% 
+    dplyr::mutate(`Get Along Par.` = GetAlongParents_Change) %>% 
+    dplyr::mutate(`Friendships` = FriendshipsAreLike_Change) %>% 
+    dplyr::mutate(`Fights` = Fights_Change) %>% 
+    dplyr::mutate(`Feelings` = FeelingsHurt_Change) %>% 
+    dplyr::mutate(`Right Wrong` = RightandWrong_Change) %>% 
+    dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
+                  `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
+                  `Learned`, `Past Rel`, `Get Along Par.`, `Friendships`,
+                  `Fights`, `Feelings`, `Right Wrong`) %>% 
+    # cor(use = "pairwise.complete.obs")
+    as.matrix() %>% 
+    Hmisc::rcorr(type = "pearson")
+
+
+# p.mat <- cor.mtest(cor(PICK_clean_outcome_change_corr))
+
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+
+
+corrplot::corrplot(PICK_clean_outcome_change_corr$r, 
+         method="color", 
+         col=col(200),  
+         type="upper", 
+         # order="hclust", 
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, #Text label color and rotation
+         # Combine with significance
+         p.mat = PICK_clean_outcome_change_corr$P, 
+         sig.level = 0.05, insig = "blank", 
+         # hide correlation coefficient on the principal diagonal
+         diag=FALSE, 
+         number.cex= 0.7,
+         tl.cex = .7,
+         title = "Scale Correlations",
+                             mar=c(0,0,1,0))
+```
+
+#### Outcomes Scales
+
+```{r}
+PICK_clean_outcomes_corr <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel_Skills_Before,
+                  Partner_Selection_Before,
+                  Past_Rel_Behav_Before,
+                  Rel_Behav_Attit_Before,
+                  Healthy_Rel_Skills,
+                  Partner_Selection,
+                  Past_Rel_Behav,
+                  Rel_Behav_Attit,
+                  Healthy_Rel_Skills_Change,
+                  Partner_Selection_Change,
+                  Past_Rel_Behav_Change,
+                  Rel_Behav_Attit_Change) %>% 
+    # dplyr::mutate(`Healthy Rel` = Healthy_Rel_Change) %>% 
+    # dplyr::mutate(`Commun.` = Communicate_Change) %>% 
+    # dplyr::mutate(`Confl. Man.` = ConflictManagement_Change) %>% 
+    # dplyr::mutate(`Right Partner` = RightPartner_Change) %>% 
+    # dplyr::mutate(`Learn Partner` =  LearnPartner_Change) %>% 
+    # dplyr::mutate(`Pace Rel.` = PaceRelationship_Change) %>% 
+    # dplyr::mutate(`Warn Signs` = WarningSigns_Change) %>% 
+    # dplyr::mutate(`Learned` = LearnedGrowingUp_Change) %>% 
+    # dplyr::mutate(`Past Rel` = PastRelationships_Change) %>% 
+    # dplyr::mutate(`Get Along Par.` = GetAlongParents_Change) %>% 
+    # dplyr::mutate(`Friendships` = FriendshipsAreLike_Change) %>% 
+    # dplyr::mutate(`Fights` = Fights_Change) %>% 
+    # dplyr::mutate(`Feelings` = FeelingsHurt_Change) %>% 
+    # dplyr::mutate(`Right Wrong` = RightandWrong_Change) %>% 
+    # dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
+    #               `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
+    #               `Learned`, `Past Rel`, `Get Along Par.`, `Friendships`,
+    #               `Fights`, `Feelings`, `Right Wrong`) %>% 
+    # cor(use = "pairwise.complete.obs")
+    as.matrix() %>% 
+    Hmisc::rcorr(type = "pearson")
+
+
+
+
+p.mat <- cor.mtest(PICK_clean_outcomes_corr$r)
+
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+
+
+corrplot::corrplot(PICK_clean_outcomes_corr$r, 
+         method="color", 
+         col=col(200),  
+         type="upper", 
+         # order="hclust", 
+         addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, #Text label color and rotation
+         # Combine with significance
+         p.mat = PICK_clean_outcomes_corr$P, 
+         sig.level = 0.05, insig = "blank", 
+         # hide correlation coefficient on the principal diagonal
+         diag=FALSE, 
+         number.cex= 0.7,
+         tl.cex = .7,
+         title = "Change Score Correlations",
+                             mar=c(0,0,1,0))
+```
+
+## Multicollinearity of Predictors
+
+* Warnings Signs
+
+  *  VIF greater than 10 is cause for concern.
+  *  Average VIF substantially greater than 1
+  *  Tolerance below 0.1 indicates serious problem, below 0.2 potential problems.
+
+### Dosage as 3 levels, Age as Continuous
+
+#### VIF
+
+```{r,echo=FALSE}
+
+VIF.fit1 <- lm(Healthy_Rel_Before.n~`Age (Decades)` + Ethnic_Code + Education_collapsed + 
+                               + Prior_RshpEducation + FinancialWorry_cat + 
+                               `Income (10K)` + Number_Attended + Gender + 
+                               Divorced_Dichotomous, data = PICK_clean)
+
+car::vif(VIF.fit1)
+
+```
+
+* Mean VIF is `r mean(car::vif(VIF.fit1))`
+
+#### Tolerance
+
+```{r, echo = FALSE}
+
+tol.fit1 <- round((1/car::vif(VIF.fit1))[,1], 3) %>% 
+    data.frame() 
+
+colnames(tol.fit1) <- "Tolerance"
+ 
+tol.fit1 %>% 
+    pander::pander()
+
+```
+
+### Dosage as 2 levels, Age as Continuous
+
+#### VIF
+
+```{r,echo=FALSE}
+
+VIF.fit2 <- lm(Healthy_Rel_Before.n~`Age (Decades)` + Ethnic_Code + Education_collapsed + 
+                               + Prior_RshpEducation + FinancialWorry_cat + 
+                               `Income (10K)` + Dosage + Gender + 
+                               Divorced_Dichotomous, data = PICK_clean)
+
+car::vif(VIF.fit2)
+
+```
+
+* Mean VIF is `r mean(car::vif(VIF.fit2))`
+
+#### Tolerance
+
+```{r, echo = FALSE}
+
+tol.fit2 <- round((1/car::vif(VIF.fit2))[,1], 3) %>% 
+    data.frame() 
+
+colnames(tol.fit2) <- "Tolerance"
+ 
+tol.fit2 %>% 
+    pander::pander()
+
+```
+
+
+## Frequencies
+
+### Frequencies of Predictors
+
+#### Age
+
+* Age (Decades)
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(`Age (Decades)`)
+```
+
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(Age_Groups)
+```
+
+#### Ethnicity
+
+* Collapsing categories
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(Ethnic_Code)
+```
+
+* Collapsing categories to two
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(Race_Dichotomous)
+```
+
+#### Education
+
+* Collapsing Less than High School and High School/GED
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(Education_collapsed)
+```
+
+#### Income
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(`Income (10K)`)
+
+
+```
+
+#### Gender
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(Gender)
+```
+
+
+#### Divorced
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(Divorced_Dichotomous)
+```
+
+#### Financial Strain
+
+* Collapsed
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(FinancialWorry_cat)
+```
+
+#### Prior Relationship Education
+
+* 2 categories
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(Prior_RshpEducation_collapsed)
+
+```
+
+#### Dosage
+
+* All Categories
+
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(Number_Attended)
+```
+
+* Dosage: Full vs. Partial
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    furniture::tableF(Dosage)
+```
+
+
+### Frequencies of Outcomes Variables at Item Level
+
+#### Perceived Knowledge About Relationship Skills 
+
+##### Retro-Pre
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(Healthy_Rel_Before.n, Communicate_Before.n, ConflictManagement_Before.n,
+           resp.opts = c(1:5))
+
+```
+
+##### Post
+```{r}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(Healthy_Rel.n, Communicate.n, ConflictManagement.n,
+           resp.opts = c(1:5))
+
+```
+
+##### Change
+```{r}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(Healthy_Rel_Change, Communicate_Change, ConflictManagement_Change,
+           resp.opts = c(-2:4))
+
+```
+
+#### Perceived Knowledge About Partner Selection
+
+##### Retro-Pre
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(RightPartner_Before.n, LearnPartner_Before.n, PaceRelationship_Before.n, WarningSigns_Before.n,
+           resp.opts = c(1:5))
+
+```
+
+##### Post
+```{r}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(RightPartner.n, LearnPartner.n, PaceRelationship.n, WarningSigns.n,
+           resp.opts = c(1:5))
+
+```
+
+##### Change
+```{r}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(RightPartner_Change, LearnPartner_Change, PaceRelationship_Change, WarningSigns_Change ,
+           resp.opts = c(-2:4))
+
+```
+
+
+#### Perceived Importance of Knowledge About a Potential Partner's Relationships Patterns
+
+##### Retro-Pre
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
+           GetAlongParents_Before.n, FriendshipsAreLike_Before.n ,
+           resp.opts = c(1:5))
+
+```
+
+##### Post
+```{r}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(LearnedGrowingUp.n, PastRelationships.n, GetAlongParents.n, FriendshipsAreLike.n,
+           resp.opts = c(1:5))
+
+```
+
+##### Change
+```{r}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(LearnedGrowingUp_Change, PastRelationships_Change, GetAlongParents_Change, FriendshipsAreLike_Change,
+           resp.opts = c(-2:4))
+
+```
+
+#### Perceived Importance of Knowledge About a Potential Partner's Relationship Behavior and Attitudes
+
+##### Retro-Pre
+```{r}
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(Fights_Before.n, FeelingsHurt_Before.n, RightandWrong_Before.n,
+           resp.opts = c(1:5))
+
+```
+
+##### Post
+```{r}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(Fights.n, FeelingsHurt.n, RightandWrong.n ,
+           resp.opts = c(1:5))
+
+```
+
+##### Change
+```{r}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    tableM(Fights_Change, FeelingsHurt_Change, RightandWrong_Change ,
+           resp.opts = c(-2:4))
+
+```
+
+
+
+### Frequencies of Outcomes Variables at Scale Level
+
+* Collapsing Categories for Display of Frequencies, but not for Analyses
+
+```{r}
+
+PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    
+    dplyr::mutate(Healthy_Rel_Skills_Change = dplyr::case_when(round(Healthy_Rel_Skills_Change, 2) <= 0 ~ "[-1,0]",
+                                                               round(Healthy_Rel_Skills_Change, 2) <= 1 ~ "(0,1]",
+                                                               round(Healthy_Rel_Skills_Change, 2) <= 2 ~ "(1,2]",
+                                                               round(Healthy_Rel_Skills_Change, 2) <= 3 ~ "(2,3]",
+                                                               round(Healthy_Rel_Skills_Change, 2) <= 4 ~ "(3,4]")) %>% 
+    dplyr::mutate(Healthy_Rel_Skills_Change = factor(Healthy_Rel_Skills_Change, 
+                                                      levels = c("[-1,0]", 
+                                                                 "(0,1]",
+                                                                 "(1,2]",
+                                                                 "(2,3]",
+                                                                 "(3,4]"))) %>% 
+    
+    dplyr::mutate(Partner_Selection_Change = dplyr::case_when(round(Partner_Selection_Change, 2) <= 0 ~ "[-1,0]",
+                                                               round(Partner_Selection_Change, 2) <= 1 ~ "(0,1]",
+                                                               round(Partner_Selection_Change, 2) <= 2 ~ "(1,2]",
+                                                               round(Partner_Selection_Change, 2) <= 3 ~ "(2,3]",
+                                                               round(Partner_Selection_Change, 2) <= 4 ~ "(3,4]")) %>% 
+    dplyr::mutate(Partner_Selection_Change = factor(Partner_Selection_Change, 
+                                                      levels = c("[-1,0]", 
+                                                                 "(0,1]",
+                                                                 "(1,2]",
+                                                                 "(2,3]",
+                                                                 "(3,4]"))) %>% 
+    
+    dplyr::mutate(Past_Rel_Behav_Change = dplyr::case_when(round(Past_Rel_Behav_Change, 2) <= 0 ~ "[-1,0]",
+                                                               round(Past_Rel_Behav_Change, 2) <= 1 ~ "(0,1]",
+                                                               round(Past_Rel_Behav_Change, 2) <= 2 ~ "(1,2]",
+                                                               round(Past_Rel_Behav_Change, 2) <= 3 ~ "(2,3]",
+                                                               round(Past_Rel_Behav_Change, 2) <= 4 ~ "(3,4]")) %>% 
+    dplyr::mutate(Past_Rel_Behav_Change = factor(Past_Rel_Behav_Change, 
+                                                      levels = c("[-1,0]", 
+                                                                 "(0,1]",
+                                                                 "(1,2]",
+                                                                 "(2,3]",
+                                                                 "(3,4]"))) %>%
+    
+    dplyr::mutate(Rel_Behav_Attit_Change = dplyr::case_when(round(Rel_Behav_Attit_Change, 2) <= 0 ~ "[-1,0]",
+                                                               round(Rel_Behav_Attit_Change, 2) <= 1 ~ "(0,1]",
+                                                               round(Rel_Behav_Attit_Change, 2) <= 2 ~ "(1,2]",
+                                                               round(Rel_Behav_Attit_Change, 2) <= 3 ~ "(2,3]",
+                                                               round(Rel_Behav_Attit_Change, 2) <= 4 ~ "(3,4]")) %>% 
+    dplyr::mutate(Rel_Behav_Attit_Change = factor(Rel_Behav_Attit_Change, 
+                                                      levels = c("[-1,0]", 
+                                                                 "(0,1]",
+                                                                 "(1,2]",
+                                                                 "(2,3]",
+                                                                 "(3,4]"))) %>% 
+    tableM(Healthy_Rel_Skills_Change, Partner_Selection_Change, Past_Rel_Behav_Change, Rel_Behav_Attit_Change)  
+
+
+```
+
+# Exploratory Factor Analysis (On Full Sample)
+
+## Retrospective-Pre
+
+```{r}
+
+Pre_vars <- PICK_clean %>% 
+    dplyr::select(Healthy_Rel_Before.n, Communicate_Before.n, ConflictManagement_Before.n,
+
+                  RightPartner_Before.n, LearnPartner_Before.n, 
+                  PaceRelationship_Before.n, WarningSigns_Before.n,
+
+                  LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
+                  GetAlongParents_Before.n, FriendshipsAreLike_Before.n,
+
+                  Fights_Before.n, FeelingsHurt_Before.n, RightandWrong_Before.n)
+
+
+Pre.EFA.Results1 <- psych::fa(r =Pre_vars,
+                             nfactors = 1,
+                             cor = "cor",
+                             rotate = "Promax")
+
+Pre.EFA.Results2 <- psych::fa(r =Pre_vars,
+                             nfactors = 2,
+                             cor = "cor",
+                             rotate = "Promax")
+
+Pre.EFA.Results3 <- psych::fa(r =Pre_vars,
+                             nfactors = 3,
+                             cor = "cor",
+                             rotate = "Promax")
+
+Pre.EFA.Results4 <- psych::fa(r =Pre_vars,
+                             nfactors = 4,
+                             cor = "cor",
+                             rotate = "Promax")
+
+
+Pre.EFA.Results5 <- psych::fa(r =Pre_vars,
+                             nfactors = 5,
+                             cor = "cor",
+                             rotate = "Promax")
+
+
+
+
+# Pre.EFA.Results1 <- factanal(data = Pre_vars,
+#                              x = ~Healthy_Rel_Before.n + Communicate_Before.n + ConflictManagement_Before.n +
+# 
+#                   RightPartner_Before.n + LearnPartner_Before.n + 
+#                   PaceRelationship_Before.n + WarningSigns_Before.n +
+# 
+#                   LearnedGrowingUp_Before.n + PastRelationships_Before.n + 
+#                   GetAlongParents_Before.n + FriendshipsAreLike_Before.n +
+# 
+#                   Fights_Before.n + FeelingsHurt_Before.n + RightandWrong_Before.n,
+#                              factors = 4,
+#                              rotation = "promax")
+
+
+```
+
+
+#### Determining Number of Factors
+
+##### Screeplot
+
+```{r}
+df.Pre.EFA <- data.frame(Pre.EFA.Results1$e.values) 
+df.Pre.EFA <- tibble::rowid_to_column(df.Pre.EFA, "Factor")
+
+df.Pre.EFA %>% 
+    ggplot2::ggplot(aes(x = Factor, y = Pre.EFA.Results1.e.values)) + geom_line() + theme_bw() +
+    scale_x_continuous(breaks=seq(0,15,1))
+```
+
+
+##### Proportion of Variance
+
+```{r}
+round(100*Pre.EFA.Results1$Vaccounted[2,], digits = 2)
+round(100*Pre.EFA.Results2$Vaccounted[3,], digits = 2)
+round(100*Pre.EFA.Results3$Vaccounted[3,], digits = 2)
+round(100*Pre.EFA.Results4$Vaccounted[3,], digits = 2)
+round(100*Pre.EFA.Results5$Vaccounted[3,], digits = 2)
+```
+
+##### Parallel Analysis
+
+```{r}
+psych::fa.parallel(Pre_vars,
+                   cor = "cor",
+                   # SMC = TRUE,
+                   fa = "fa",
+                   fm = "pa")
+
+
+```
+
+##### Examining Loadings
+
+```{r}
+Pre.EFA.Results3
+```
+
+
+```{r}
+Pre.EFA.Results4
+```
+
+```{r}
+Pre.EFA.Results5
+```
+
+## Post
+```{r}
+
+Post_vars <- PICK_clean %>% 
+    dplyr::select(
+                  Healthy_Rel.n, Communicate.n, ConflictManagement.n,
+                  
+                  RightPartner.n, LearnPartner.n, 
+                  PaceRelationship.n, WarningSigns.n,
+                  
+                  LearnedGrowingUp.n, PastRelationships.n, 
+                  GetAlongParents.n, FriendshipsAreLike.n,
+                  
+                  Fights.n, FeelingsHurt.n, RightandWrong.n)
+
+Post.EFA.Results1 <- psych::fa(r =Post_vars,
+                             nfactors = 1,
+                             cor = "cor",
+                             rotate = "Promax")
+
+Post.EFA.Results2 <- psych::fa(r =Post_vars,
+                             nfactors = 2,
+                             cor = "cor",
+                             rotate = "Promax")
+
+Post.EFA.Results3 <- psych::fa(r =Post_vars,
+                             nfactors = 3,
+                             cor = "cor",
+                             rotate = "Promax")
+
+Post.EFA.Results4 <- psych::fa(r =Post_vars,
+                             nfactors = 4,
+                             cor = "cor",
+                             rotate = "Promax")
+
+
+Post.EFA.Results5 <- psych::fa(r =Post_vars,
+                             nfactors = 5,
+                             cor = "cor",
+                             rotate = "Promax")
+
+
+
+
+
+
+
+```
+
+
+#### Determining Number of Factors
+
+##### Screeplot
+
+```{r}
+df.Post.EFA <- data.frame(Post.EFA.Results1$e.values) 
+df.Post.EFA <- tibble::rowid_to_column(df.Post.EFA, "Factor")
+
+df.Post.EFA %>% 
+    ggplot2::ggplot(aes(x = Factor, y = Post.EFA.Results1.e.values)) + geom_line() + theme_bw() +
+    scale_x_continuous(breaks=seq(0,15,1))
+```
+
+
+##### Proportion of Variance
+
+```{r}
+round(100*Post.EFA.Results1$Vaccounted[2,], digits = 2)
+round(100*Post.EFA.Results2$Vaccounted[3,], digits = 2)
+round(100*Post.EFA.Results3$Vaccounted[3,], digits = 2)
+round(100*Post.EFA.Results4$Vaccounted[3,], digits = 2)
+round(100*Post.EFA.Results5$Vaccounted[3,], digits = 2)
+```
+
+##### Parallel Analysis
+
+```{r}
+psych::fa.parallel(Post_vars,
+                   cor = "cor",
+                   # SMC = TRUE,
+                   fa = "fa",
+                   fm = "pa")
+
+
+```
+
+##### Examining Loadings
+
+```{r}
+Post.EFA.Results3
+```
+
+
+```{r}
+Post.EFA.Results4
+```
+
+```{r}
+Post.EFA.Results5
+```
+
+
+
+## Change
+```{r}
+
+Change_vars <- PICK_clean %>% 
+    dplyr::select(Healthy_Rel_Change, Communicate_Change, ConflictManagement_Change, 
+                  RightPartner_Change, LearnPartner_Change, 
+                  PaceRelationship_Change, WarningSigns_Change, 
+                  LearnedGrowingUp_Change, PastRelationships_Change, 
+                  GetAlongParents_Change, FriendshipsAreLike_Change, 
+                  Fights_Change, FeelingsHurt_Change, RightandWrong_Change)
+
+Change.EFA.Results1 <- psych::fa(r =Change_vars,
+                             nfactors = 1,
+                             cor = "cor",
+                             rotate = "Promax")
+
+Change.EFA.Results2 <- psych::fa(r =Change_vars,
+                             nfactors = 2,
+                             cor = "cor",
+                             rotate = "Promax")
+
+Change.EFA.Results3 <- psych::fa(r =Change_vars,
+                             nfactors = 3,
+                             cor = "cor",
+                             rotate = "Promax")
+
+Change.EFA.Results4 <- psych::fa(r =Change_vars,
+                             nfactors = 4,
+                             cor = "cor",
+                             rotate = "Promax")
+
+
+Change.EFA.Results5 <- psych::fa(r =Change_vars,
+                             nfactors = 5,
+                             cor = "cor",
+                             rotate = "Promax")
+
+
+
+
+
+
+
+```
+
+
+#### Determining Number of Factors
+
+##### Screeplot
+
+```{r}
+df.Change.EFA <- data.frame(Change.EFA.Results1$e.values) 
+df.Change.EFA <- tibble::rowid_to_column(df.Change.EFA, "Factor")
+
+df.Change.EFA %>% 
+    ggplot2::ggplot(aes(x = Factor, y = Change.EFA.Results1.e.values)) + 
+    geom_line() + 
+    theme_bw() +
+    scale_x_continuous(breaks=seq(0,15,1))
+```
+
+
+##### Proportion of Variance
+
+```{r}
+round(100*Change.EFA.Results1$Vaccounted[2,], digits = 2)
+round(100*Change.EFA.Results2$Vaccounted[3,], digits = 2)
+round(100*Change.EFA.Results3$Vaccounted[3,], digits = 2)
+round(100*Change.EFA.Results4$Vaccounted[3,], digits = 2)
+round(100*Change.EFA.Results5$Vaccounted[3,], digits = 2)
+```
+
+##### Parallel Analysis
+
+```{r}
+psych::fa.parallel(Change_vars,
+                   cor = "cor",
+                   # SMC = TRUE,
+                   fa = "fa",
+                   fm = "pa")
+
+
+```
+
+##### Examining Loadings
+
+```{r}
+Change.EFA.Results2
+```
+
+```{r}
+Change.EFA.Results3
+```
+
+
+```{r}
+Change.EFA.Results4
+```
+
+```{r}
+Change.EFA.Results5
+```
+
+# Confirmatory Factor Analysis (On Analytic Sample)
+
+## Retrospective Pre
+
+### Model Fit
+
+```{r, echo=FALSE}
+# specify the model
+RPRE.model <- ' Healthy_Rel_Skills_Before =~ Healthy_Rel_Before.n + Communicate_Before.n + ConflictManagement_Before.n
+                Partner_Selection_Before  =~ RightPartner_Before.n + LearnPartner_Before.n + 
+                                             PaceRelationship_Before.n +  WarningSigns_Before.n
+                Past_Rel_Behav_Before     =~ LearnedGrowingUp_Before.n + PastRelationships_Before.n + 
+                                             GetAlongParents_Before.n + FriendshipsAreLike_Before.n
+                Rel_Behav_Attit_Before    =~ Fights_Before.n + FeelingsHurt_Before.n + RightandWrong_Before.n '
+
+# fit the model
+RPRE.model.fit <- lavaan::cfa(RPRE.model, 
+                              data=(PICK_clean %>% 
+                                        dplyr::filter(in.analysis.sample == TRUE)),
+                              estimator = "MLR")
+
+# display summary output
+lavaan::summary(RPRE.model.fit, fit.measures=TRUE, standardized=TRUE )
+```
+
+### Modification Indices
+
+```{r, echo = FALSE}
+lavaan::modificationindices(RPRE.model.fit) %>% 
+    data.frame() %>% 
+    dplyr::filter(mi>10) %>% 
+    dplyr::arrange(-mi)
+    
+```
+
+```{r}
+lavaan::parameterEstimates(RPRE.model.fit)
+psych::om
+```
+
+
+## Post
+
+### Model Fit
+
+```{r, echo=FALSE}
+# specify the model
+POST.model <- ' Healthy_Rel_Skills =~ Healthy_Rel.n + Communicate.n + ConflictManagement.n
+                Partner_Selection  =~ RightPartner.n + LearnPartner.n + 
+                                      PaceRelationship.n +  WarningSigns.n
+                Past_Rel_Behav     =~ LearnedGrowingUp.n + PastRelationships.n + 
+                                      GetAlongParents.n + FriendshipsAreLike.n
+                Rel_Behav_Attit    =~ Fights.n + FeelingsHurt.n + RightandWrong.n 
+                
+                # Healthy_Rel.n ~~ Communicate.n + ConflictManagement.n + RightPartner.n + 
+                #                  LearnPartner.n + PaceRelationship.n + WarningSigns.n
+                # 
+                # Communicate.n ~~ ConflictManagement.n + RightPartner.n + 
+                #                  LearnPartner.n + PaceRelationship.n + WarningSigns.n
+                # 
+                # ConflictManagement.n ~~  RightPartner.n + 
+                #                  LearnPartner.n + PaceRelationship.n + WarningSigns.n
+                # 
+                # RightPartner.n ~~ LearnPartner.n + PaceRelationship.n + WarningSigns.n
+                # 
+                # LearnPartner.n ~~ PaceRelationship.n + WarningSigns.n
+                # 
+                # PaceRelationship.n ~~ WarningSigns.n
+
+               '
+
+# fit the model
+POST.model.fit <- lavaan::cfa(POST.model, 
+                              data=(PICK_clean %>% 
+                                        dplyr::filter(in.analysis.sample == TRUE)),
+                              estimator = "MLR")
+
+# display summary output
+lavaan::summary(POST.model.fit, fit.measures=TRUE, standardized = TRUE)
+```
+
+### Modification Indices
+
+```{r, echo = FALSE}
+lavaan::modificationindices(POST.model.fit) %>% 
+    data.frame() %>% 
+    dplyr::filter(mi>10) %>% 
+    dplyr::arrange(-mi)
+    
+```
+
+### Alternative Model 1
+
+```{r, echo=FALSE}
+# specify the model
+POST.model.2         <- ' Healthy_Rel_Skills =~ Healthy_Rel.n + Communicate.n + 
+                                                ConflictManagement.n
+                          Partner_Selection  =~ RightPartner.n + LearnPartner.n + 
+                                                PaceRelationship.n +  WarningSigns.n
+                          Past_Rel_Behav     =~ LearnedGrowingUp.n + PastRelationships.n + 
+                                                GetAlongParents.n + FriendshipsAreLike.n
+                          Rel_Behav_Attit    =~ Fights.n + FeelingsHurt.n + RightandWrong.n
+
+                          PastRelationships.n	~~	FriendshipsAreLike.n
+'
+
+# fit the model
+POST.model.2.fit <- lavaan::cfa(POST.model.2, 
+                              data=(PICK_clean %>% 
+                                        dplyr::filter(in.analysis.sample == TRUE)),
+                              estimator = "MLR")
+
+# display summary output
+lavaan::summary(POST.model.2.fit, fit.measures=TRUE, standardized = TRUE)
+```
+
+### Modification Indices
+
+```{r, echo = FALSE}
+lavaan::modificationindices(POST.model.3.fit) %>% 
+    data.frame() %>% 
+    dplyr::filter(mi>10) %>% 
+    dplyr::arrange(-mi)
+    
+```
+
+### Alternative Model 2
+
+```{r, echo=FALSE}
+# specify the model
+POST.model.3         <- ' Healthy_Rel_Skills =~ Healthy_Rel.n + Communicate.n + 
+                                                ConflictManagement.n
+                          Partner_Selection  =~ RightPartner.n + LearnPartner.n + 
+                                                PaceRelationship.n +  WarningSigns.n
+                          Past_Rel_Behav     =~ LearnedGrowingUp.n + PastRelationships.n + 
+                                                GetAlongParents.n + FriendshipsAreLike.n
+                          Rel_Behav_Attit    =~ FeelingsHurt.n + RightandWrong.n
+
+                      
+'
+
+# fit the model
+POST.model.3.fit <- lavaan::cfa(POST.model.3, 
+                              data=(PICK_clean %>% 
+                                        dplyr::filter(in.analysis.sample == TRUE)),
+                              estimator = "MLR")
+
+# display summary output
+lavaan::summary(POST.model.3.fit, fit.measures=TRUE, standardized = TRUE)
+```
+
+## Change
+
+### Model Fit
+
+```{r, echo=FALSE}
+# specify the model
+Change.model <- ' Healthy_Rel_Skills =~ Healthy_Rel_Change + Communicate_Change + 
+                                        ConflictManagement_Change
+                  Partner_Selection  =~ RightPartner_Change + LearnPartner_Change + 
+                                        PaceRelationship_Change +  WarningSigns_Change
+                  Past_Rel_Behav     =~ LearnedGrowingUp_Change + PastRelationships_Change + 
+                                        GetAlongParents_Change + FriendshipsAreLike_Change
+                  Rel_Behav_Attit    =~ Fights_Change + FeelingsHurt_Change + RightandWrong_Change '
+
+# fit the model
+Change.model.fit <- lavaan::cfa(Change.model, 
+                              data=(PICK_clean %>% 
+                                        dplyr::filter(in.analysis.sample == TRUE)),
+                              estimator = "MLR")
+
+# display summary output
+lavaan::summary(Change.model.fit, fit.measures=TRUE, standardized = TRUE)
+```
+
+### Modification Indices
+
+```{r, echo = FALSE}
+lavaan::modificationindices(POST.model.fit) %>% 
+    data.frame() %>% 
+    dplyr::filter(mi>10) %>% 
+    dplyr::arrange(-mi)
+    
+```
+
+
+
+# Reliability of Scales (Using Analytic Sample): Chronbach's Alpha (Assumes Factor Loadings are Equivalent)
+
+## Retrospective-Pre 
+
+### Perceived Knowledge About Relationship Skills 
+
+#### Cronbach's alpha (Average split half reliability)
+
+```{r}
+RPRE.Skills.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel_Before.n, Communicate_Before.n, 
+                  ConflictManagement_Before.n) %>% 
+    psych::alpha()
+
+RPRE.Skills.alpha
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+RPRE.Skills.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel_Before.n, Communicate_Before.n, 
+                  ConflictManagement_Before.n) %>% 
+    psych::ICLUST() 
+
+RPRE.Skills.beta
+
+RPRE.Skills.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(RPRE.Skills.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(RPRE.Skills.rhoc$beta, 2)`
+
+### Perceived Knowledge About Partner Selection
+
+#### Cronbach's alpha (Average split half reliability) 
+```{r}
+
+RPRE.Partner.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(RightPartner_Before.n, LearnPartner_Before.n, 
+                  PaceRelationship_Before.n, WarningSigns_Before.n) %>% 
+    psych::alpha()
+
+RPRE.Partner.alpha
+```
+
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+RPRE.Partner.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(RightPartner_Before.n, LearnPartner_Before.n, 
+                  PaceRelationship_Before.n, WarningSigns_Before.n) %>% 
+    psych::ICLUST() 
+
+RPRE.Partner.beta
+
+RPRE.Partner.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(RPRE.Partner.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(RPRE.Partner.beta$beta, 2)`
+
+### Perceived Importance of Knowledge About a Potential Partner's Relationships Patterns
+
+#### Cronbach's alpha (Average split half reliability)
+
+```{r}
+RPRE.Patterns.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
+                  GetAlongParents_Before.n, FriendshipsAreLike_Before.n) %>% 
+    psych::alpha()
+
+RPRE.Patterns.alpha
+```
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+RPRE.Patterns.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
+                  GetAlongParents_Before.n, FriendshipsAreLike_Before.n) %>% 
+    psych::ICLUST() 
+
+RPRE.Patterns.beta
+
+RPRE.Patterns.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(RPRE.Patterns.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(RPRE.Patterns.beta$beta, 2)`
+
+### Perceived Importance of Knowledge About a Potential Partner's Relationship Behavior and Attitudes
+
+#### Cronbach's alpha (Average split half reliability)
+
+
+```{r}
+
+RPRE.Behaviors.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Fights_Before.n, FeelingsHurt_Before.n, 
+                  RightandWrong_Before.n) %>% 
+    psych::alpha()
+
+RPRE.Behaviors.alpha
+
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+RPRE.Behaviors.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Fights_Before.n, FeelingsHurt_Before.n, 
+                  RightandWrong_Before.n) %>% 
+    psych::ICLUST() 
+
+RPRE.Behaviors.beta
+
+RPRE.Behaviors.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(RPRE.Behaviors.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(RPRE.Behaviors.beta$beta, 2)`
+
+## Post
+
+### Perceived Knowledge About Relationship Skills 
+
+#### Cronbach's alpha (Average split half reliability)
+
+
+```{r}
+
+Post.Skills.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel.n, Communicate.n, ConflictManagement.n) %>% 
+    psych::alpha()
+
+Post.Skills.alpha
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+Post.Skills.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel.n, Communicate.n, ConflictManagement.n) %>% 
+    psych::ICLUST() 
+
+Post.Skills.beta
+
+Post.Skills.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(Post.Skills.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(Post.Skills.beta$beta, 2)`
+
+### Perceived Knowledge About Partner Selection
+
+#### Cronbach's alpha (Average split half reliability)
+
+
+```{r}
+
+Post.Partner.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(RightPartner.n, LearnPartner.n, 
+                  PaceRelationship.n, WarningSigns.n) %>% 
+    psych::alpha()
+
+Post.Partner.alpha
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+Post.Partner.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(RightPartner.n, LearnPartner.n, 
+                  PaceRelationship.n, WarningSigns.n) %>% 
+    psych::ICLUST() 
+
+Post.Partner.beta
+
+Post.Partner.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(Post.Partner.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(Post.Partner.beta$beta, 2)`
+
+### Perceived Importance of Knowledge About a Potential Partner's Relationships Patterns
+
+#### Cronbach's alpha (Average split half reliability)
+
+
+```{r}
+
+Post.Patterns.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(LearnedGrowingUp.n, PastRelationships.n, 
+                  GetAlongParents.n, FriendshipsAreLike.n) %>% 
+    psych::alpha()
+
+Post.Patterns.alpha
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+Post.Patterns.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(LearnedGrowingUp.n, PastRelationships.n, 
+                  GetAlongParents.n, FriendshipsAreLike.n) %>% 
+    psych::ICLUST() 
+
+Post.Patterns.beta
+
+Post.Patterns.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(Post.Patterns.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(Post.Patterns.beta$beta, 2)`
+
+### Perceived Importance of Knowledge About a Potential Partner's Relationship Behavior and Attitudes
+
+#### Cronbach's alpha (Average split half reliability)
+
+```{r}
+
+Post.Behaviors.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Fights.n, FeelingsHurt.n, RightandWrong.n) %>% 
+    psych::alpha()
+
+Post.Behaviors.alpha
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+Post.Beahviors.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Fights.n, FeelingsHurt.n, RightandWrong.n) %>% 
+    psych::ICLUST() 
+
+Post.Beahviors.beta
+
+Post.Beahviors.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(Post.Behaviors.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(Post.Beahviors.beta$beta, 2)`
+
+## Change
+
+### Perceived Knowledge About Relationship Skills 
+
+#### Cronbach's alpha (Average split half reliability)
+
+```{r}
+
+Change.Skills.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel_Change, Communicate_Change, 
+                  ConflictManagement_Change) %>% 
+    psych::alpha()
+
+Change.Skills.alpha
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+Change.Skills.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Healthy_Rel_Change, Communicate_Change, 
+                  ConflictManagement_Change) %>% 
+    psych::ICLUST() 
+
+Change.Skills.beta
+
+Change.Skills.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(Change.Skills.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(Change.Skills.beta$beta, 2)`
+
+### Perceived Knowledge About Partner Selection
+
+#### Cronbach's alpha (Average split half reliability)
+
+
+```{r}
+
+Change.Parnter.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(RightPartner_Change, LearnPartner_Change, 
+                  PaceRelationship_Change, WarningSigns_Change) %>% 
+    psych::alpha()
+
+Change.Parnter.alpha
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+Change.Partner.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(RightPartner_Change, LearnPartner_Change, 
+                  PaceRelationship_Change, WarningSigns_Change) %>% 
+    psych::ICLUST() 
+
+Change.Partner.beta
+
+Change.Partner.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(Change.Parnter.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(Change.Partner.beta$beta, 2)`
+
+### Perceived Importance of Knowledge About a Potential Partner's Relationships Patterns
+
+#### Cronbach's alpha (Average split half reliability)
+
+```{r}
+
+Change.Patterns.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(LearnedGrowingUp_Change, PastRelationships_Change,
+                  GetAlongParents_Change, FriendshipsAreLike_Change) %>% 
+    psych::alpha()
+
+Change.Patterns.alpha
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+Change.Patterns.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(LearnedGrowingUp_Change, PastRelationships_Change,
+                  GetAlongParents_Change, FriendshipsAreLike_Change) %>% 
+    psych::ICLUST() 
+
+RPRE.Partner.beta
+
+RPRE.Partner.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(Change.Patterns.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(Change.Patterns.beta$beta, 2)`
+
+### Perceived Importance of Knowledge About a Potential Partner's Relationship Behavior and Attitudes
+
+#### Cronbach's alpha (Average split half reliability)
+
+
+```{r}
+
+Change.Behaviors.alpha <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(Fights_Change, FeelingsHurt_Change, RightandWrong_Change) %>% 
+    psych::alpha()
+
+Change.Behaviors.alpha
+```
+
+#### Congeneric reliability (Jöreskog, 1971; Cho, 2016)
+
+* Also called "composite reliability," "unidimensional omega," "Raju (1977) coefficient," and "worst split half reliability"
+
+```{r}
+
+Change.Behaviors.beta <- PICK_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>%
+    dplyr::select(RightPartner_Before.n, LearnPartner_Before.n, 
+                  PaceRelationship_Before.n, WarningSigns_Before.n) %>% 
+    psych::ICLUST() 
+
+Change.Behaviors.beta
+
+Change.Behaviors.beta %>% 
+    psych::ICLUST.graph(out.file="iclust.dot")
+
+```
+
+#### Summary
+
+Cronbach's $\alpha$ = `r round(Change.Behaviors.alpha$total$raw_alpha, 2)`
+Congeneric reliability $\beta$ = `r round(Change.Behaviors.beta$beta, 2)`
+ 
+ 
+ 
+                  
+
+\newpage
+
+# Univariate Type III Repeated-Measures ANOVA
+
+## Testing with and without Assumpsion of Sphericity.
+
+* Significant even after correcting for departure from sphericity
+* "Sphericity is an important assumption of a repeated-measures ANOVA. It refers to the condition where the variances of the differences between all possible pairs of within-subject conditions (i.e., levels of the independent variable) are equal." (https://en.wikipedia.org/wiki/Mauchly%27s_sphericity_test)
+
+```{r, warning=FALSE}
+aov_gains <- afex::aov_4(Change.Score ~ 1 + (var|ID),
+            data = PICK_clean_long)
+
+summary(aov_gains)
+```
+
+## Pillai test statistic
+
+```{r}
+aov_gains$Anova
+```
+
+## Paired Comparisons
+
+```{r}
+aov_gains %>% 
+    emmeans::emmeans(~ var)
+```
+
+## Paired Comparisons with Tukey Adjustment
+
+```{r}
+aov_gains %>% 
+    emmeans::emmeans(~ var) %>% 
+    pairs(adjust = "tukey")
+```
+
+\newpage
+
+## Plot with Confidence Intervals
+
+```{r}
+aov_gains %>% 
+    emmeans::emmip(~var, CIs = TRUE)
+```
+
+\newpage
+
+# MLM Analyses
+
+## Calculating ICC
+
+```{r}
+mlm.change.baseline.RE <- lme4::lmer(Change.Score ~ 1 + (1|ID),
+                                  data = PICK_clean_long,
+                                  REML = TRUE)
+
+print(summary(mlm.change.baseline.RE), digits = 3)
+
+```
+
+```{r}
+sjstats::icc(mlm.change.baseline.RE)
+```
+
+
+## Baseline Model: No Predictors
+
+
+
+
+```{r}
+mlm.change.baseline <- lme4::lmer(Change.Score ~ 1 + (1|ID),
+                                  data = PICK_clean_long,
+                                  REML = FALSE)
+
+print(summary(mlm.change.baseline), digits = 3)
+
+```
+
+
+
+\newpage
+## Model Examining Effect of Outcome Level
+
+```{r}
+mlm.change.no.preds <- lme4::lmer(Change.Score ~ var + (1|ID), data = PICK_clean_long, REML = FALSE)
+
+print(summary(mlm.change.no.preds), digits = 3)
+```
+
+## Model Comparison
+
+```{r}
+anova(mlm.change.baseline, mlm.change.no.preds)
+```
+
+```{r}
+mlm.change.no.preds %>% emmeans::emmeans(~var) %>% pairs(adjust = "tukey")
+```
+
+```{r}
+mlm.change.no.preds %>% emmeans::emmip(~var, CIs = TRUE)
+```
+
+### kenward-roger (p.34 text)
+
+```{r}
+mlm.change.no.preds %>% emmeans::emmeans(~var) %>% emmeans::cld()
+```
+\newpage
+
+## Plot of Model Only Examining Outcome "Level" and Change
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var"),
+                mod = mlm.change.no.preds) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+                      linetype = "dotted"),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      linetype = "solid"),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point() +
+    geom_line()+
+    guides(linetype = FALSE) +
+    ggtitle("Estimated Change from Pre to Post by Outcome") + 
+    theme_bw()
+```
+
+\newpage
+
+## Adding All Predictors
+
+*  **Need to check correlations**
+
+```{r, message = FALSE}
+mlm.change.2 <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                               + Prior_RshpEducation + FinancialWorry_cat + 
+                               Income_10K + Number_Attended + Gender + 
+                               Divorced_Dichotomous + 
+                               var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+print(summary(mlm.change.2), digits = 3)
+
+```
+
+\newpage
+## Collapsing Dosage
+
+```{r, message = FALSE}
+mlm.change.3 <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                               + Prior_RshpEducation + FinancialWorry_cat + 
+                               Income_10K + Dosage + Gender + 
+                               Divorced_Dichotomous + 
+                               var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+print(summary(mlm.change.3), digits = 3)
+
+```
+
+## Adding Interactions to Test Whether Effect of Predictor Varies as a Function of Outcome Level
+
+```{r, message = FALSE}
+mlm.change.top <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + 
+                                   Divorced_Dichotomous + 
+                                   Dosage:var + Prior_RshpEducation:var +
+                                   Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+print(summary(mlm.change.top), digits = 3)
+
+```
+
+
+\newpage
+
+## Model Comparisons to See if Interactions Are Needed
+
+```{r, include = FALSE, message = FALSE}
+mlm.change.top.minus.DosageInt <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                     Prior_RshpEducation:var + Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+mlm.change.top.minus.PriorRelInt <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   Dosage:var +  Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+mlm.change.top.minus.Age <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   Dosage:var + Prior_RshpEducation:var +   
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+```
+
+### Droping Dosage Interaction
+
+```{r}
+anova(mlm.change.top, mlm.change.top.minus.DosageInt)
+```
+
+### Droping Prior Relationship Education Interaction
+
+```{r}
+anova(mlm.change.top, mlm.change.top.minus.PriorRelInt)
+```
+
+\newpage
+
+### Droping Age Interaction
+
+```{r}
+anova(mlm.change.top, mlm.change.top.minus.Age)
+```
+
+\newpage
+
+## Final Model: Keeping Only Age Interaction and Testing Main Effects
+
+```{r, message = FALSE}
+mlm.change.top2 <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   Age_Decades:var + 
+                                   var + (1|ID), data = PICK_clean_long, REML = FALSE)
+
+print(summary(mlm.change.top2), digits = 3)
+
+
+```
+
+\newpage
+
+### Testing Significance of Main Effects
+
+```{r, include = FALSE}
+mlm.change.drop.Ethnicity <- lme4::lmer(Change.Score ~ Age_Decades +  Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+mlm.change.drop.Educ <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code +  
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.RelEd <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Fin <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation +  
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Inc <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                    Dosage + Gender + Divorced_Dichotomous + 
+                                   Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Dos <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K  + Gender + Divorced_Dichotomous + 
+                                   Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Gen <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage +  Divorced_Dichotomous + 
+                                   Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Div <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender +  
+                                   Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.AgeInt <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                  
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+```
+
+
+#### Ethnicity 
+
+* Significant
+
+```{r}
+anova(mlm.change.top2, mlm.change.drop.Ethnicity)
+```
+
+#### Education 
+
+```{r}
+anova(mlm.change.top2, mlm.change.drop.Educ)
+```
+
+\newpage
+#### Prior Relationship Education 
+
+* Significant
+
+```{r}
+anova(mlm.change.top2, mlm.change.drop.RelEd)
+```
+
+#### Financial Worry 
+
+```{r}
+anova(mlm.change.top2, mlm.change.drop.Fin)
+```
+\newpage
+#### Income 
+
+```{r}
+anova(mlm.change.top2, mlm.change.drop.Inc)
+```
+
+#### Dosage 
+
+* Significant
+
+```{r}
+anova(mlm.change.top2, mlm.change.drop.Dos)
+```
+
+\newpage
+
+#### Gender 
+
+```{r}
+anova(mlm.change.top2, mlm.change.drop.Gen)
+```
+
+#### Divorce 
+
+```{r}
+anova(mlm.change.top2, mlm.change.drop.Div)
+```
+
+\newpage 
+
+#### Age Interaction 
+
+* Significant 
+
+```{r}
+anova(mlm.change.top2, mlm.change.drop.AgeInt)
+```
+
+
+
+
+
+
+```{r, include = FALSE}
+# mlm.change.5 <- lme4::lmer(Change.Score ~ Age + Ethnic_Code + Education_collapsed +
+#                                + Prior_RshpEducation + FinancialWorry_cat +
+#                                Income + Dosage + Gender +
+#                                Divorced_Dichotomous + Age:var  +
+#                                var + (1|ID),
+#             data = PICK_clean_long)
+# 
+# summary(mlm.change.5)
+```
+
+\newpage
+
+# Final Model Estimates
+```{r}
+texreg::screenreg(mlm.change.top2)
+```
+
+\newpage
+
+# Plotting the Effect of Predictors
+
+
+## Race/Ethnicity
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Ethnic_Code"),
+                mod = mlm.change.top2) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Race/Ethnicity` = factor(Ethnic_Code)) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Race/Ethnicity`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Race/Ethnicity`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Race/Ethnicity`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Race/Ethnicity on Change from Pre to Post") + 
+    theme_bw()
+```
+
+## Prior Relationship Education
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Prior_RshpEducation"),
+                mod = mlm.change.top2) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Prior Rel. Educ` = factor(Prior_RshpEducation,
+                                             levels = c("None",
+                                                        "Some", 
+                                                        "A lot"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Prior Rel. Educ`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Prior Rel. Educ`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Prior Rel. Educ`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Prior Rel. Educ on Change from Pre to Post") + 
+    theme_bw()
+```
+
+
+## Dosage
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Dosage"),
+                mod = mlm.change.top2) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = Dosage,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = Dosage,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = Dosage),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Dosage Level on Change from Pre to Post") + 
+    theme_bw()
+```
+
+
+## Age X Outcome Level Interaction
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Age_Decades"),
+                xlevels=list(Age_Decades=c(2, 3, 4, 5, 6)),
+                mod = mlm.change.top2) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(Age = factor(Age_Decades,
+                               levels = c(2:6),
+                               labels = c("20", "30", "40",
+                                          "50", "60"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = Age,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = Age,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = Age),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Age on Change from Pre to Post") + 
+    theme_bw()
+```
+
+# New
+
+## Final Model: Keeping Only Main Effects
+
+```{r, message = FALSE}
+mlm.change.top2n <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID), data = PICK_clean_long, REML = FALSE)
+
+print(summary(mlm.change.top2n), digits = 3)
+
+
+```
+
+# Trimmed
+```{r, message = FALSE}
+mlm.change.trimmed <- lme4::lmer(Change.Score ~ Race_Dichotomous + 
+                                     Prior_RshpEducation_collapsed + Dosage + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID), data = PICK_clean_long, REML = FALSE)
+
+print(summary(mlm.change.trimmed), digits = 3)
+
+
+```
+
+
+\newpage
+
+### Testing Significance of Main Effects
+
+```{r, include = FALSE}
+mlm.change.drop.Ethnicity.n <- lme4::lmer(Change.Score ~ Age_Decades +  Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+mlm.change.drop.Educ.n <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code +  
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.RelEd.n <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Fin.n <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation +  
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Inc.n <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                    Dosage + Gender + Divorced_Dichotomous + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Dos.n <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K  + Gender + Divorced_Dichotomous + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Gen.n <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage +  Divorced_Dichotomous + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Div.n <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender +  
+                                   # Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+mlm.change.drop.age.n <- lme4::lmer(Change.Score ~  Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender +  
+                                   # Age_Decades:var + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+```
+
+
+#### Ethnicity 
+
+* Significant
+
+```{r}
+anova(mlm.change.top2n, mlm.change.drop.Ethnicity.n)
+```
+
+#### Education 
+
+```{r}
+anova(mlm.change.top2n, mlm.change.drop.Educ.n)
+```
+
+\newpage
+#### Prior Relationship Education 
+
+* Significant
+
+```{r}
+anova(mlm.change.top2n, mlm.change.drop.RelEd.n)
+```
+
+#### Financial Worry 
+
+```{r}
+anova(mlm.change.top2n, mlm.change.drop.Fin.n)
+```
+\newpage
+#### Income 
+
+```{r}
+anova(mlm.change.top2n, mlm.change.drop.Inc.n)
+```
+
+#### Dosage 
+
+* Significant
+
+```{r}
+anova(mlm.change.top2n, mlm.change.drop.Dos.n)
+```
+
+\newpage
+
+#### Gender 
+
+```{r}
+anova(mlm.change.top2n, mlm.change.drop.Gen.n)
+```
+
+#### Divorce 
+
+```{r}
+anova(mlm.change.top2n, mlm.change.drop.Div.n)
+```
+
+\newpage 
+
+#### Age  
+
+```{r}
+anova(mlm.change.top2n, mlm.change.drop.age.n)
+```
+
+
+
+
+
+
+```{r, include = FALSE}
+# mlm.change.5 <- lme4::lmer(Change.Score ~ Age + Ethnic_Code + Education_collapsed +
+#                                + Prior_RshpEducation + FinancialWorry_cat +
+#                                Income + Dosage + Gender +
+#                                Divorced_Dichotomous + Age:var  +
+#                                var + (1|ID),
+#             data = PICK_clean_long)
+# 
+# summary(mlm.change.5)
+```
+
+\newpage
+
+# Final Model Estimates
+```{r}
+texreg::screenreg(mlm.change.top2n)
+```
+
+\newpage
+
+# Plotting the Effect of Predictors
+
+
+## Race/Ethnicity
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Ethnic_Code"),
+                mod = mlm.change.top2n) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Race/Ethnicity` = factor(Ethnic_Code)) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Race/Ethnicity`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Race/Ethnicity`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Race/Ethnicity`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Race/Ethnicity on Change from Pre to Post") + 
+    theme_bw()
+```
+
+## Prior Relationship Education
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Prior_RshpEducation"),
+                mod = mlm.change.top2n) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Prior Rel. Educ` = factor(Prior_RshpEducation,
+                                             levels = c("None",
+                                                        "Some", 
+                                                        "A lot"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Prior Rel. Educ`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Prior Rel. Educ`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Prior Rel. Educ`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Prior Rel. Educ on Change from Pre to Post") + 
+    theme_bw()
+```
+
+
+## Dosage
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Dosage"),
+                mod = mlm.change.top2) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = Dosage,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = Dosage,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = Dosage),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Dosage Level on Change from Pre to Post") + 
+    theme_bw()
+```
+
+
+## Age X Outcome Level Interaction
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Age_Decades"),
+                xlevels=list(Age_Decades=c(2, 3, 4, 5, 6)),
+                mod = mlm.change.top2) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(Age = factor(Age_Decades,
+                               levels = c(2:6),
+                               labels = c("20", "30", "40",
+                                          "50", "60"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = Age,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = Age,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = Age),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Age on Change from Pre to Post") + 
+    theme_bw()
+```
+
+
+
+```{r, message = FALSE}
+mlm.change.top2n.REML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation + FinancialWorry_cat + 
+                                   Income_10K + Dosage + Gender + Divorced_Dichotomous + 
+                                   # Age_Decades:var + 
+                                   var + (1|ID), data = PICK_clean_long, REML = TRUE)
+
+print(summary(mlm.change.top2n.REML), digits = 3)
+
+
+```
+
+
+
+### kenward-roger (p.34 text)
+
+```{r}
+mlm.change.top2n %>% emmeans::emmeans(~var) %>% emmeans::cld()
+```
+
+### kenward-roger (p.34 text)
+
+```{r}
+mlm.change.top2n %>% emmeans::emmeans(~Ethnic_Code) %>% emmeans::cld()
+```
+
+### kenward-roger (p.34 text)
+
+```{r}
+mlm.change.top2n %>% emmeans::emmeans(~Prior_RshpEducation) %>% emmeans::cld()
+```
+
+```{r}
+mlm.change.trimmed %>% emmeans::emmeans(~Prior_RshpEducation_collapsed) %>% emmeans::cld()
+```
+
+### kenward-roger (p.34 text)
+
+```{r}
+mlm.change.top2n %>% emmeans::emmeans(~Dosage) %>% emmeans::cld()
+```
+
+# Table
+
+```{r}
+texreg::screenreg(list(mlm.change.baseline,
+                       mlm.change.no.preds,
+                       mlm.change.top2n,
+                       mlm.change.top2n.REML))
+
+```
+
+
+```{r}
+
+texreg::screenreg(list(mlm.change.baseline,
+                       mlm.change.no.preds,
+                       mlm.change.trimmed))
+
+```
+
+

@@ -1,0 +1,68 @@
+---
+title: "To Do"
+date: "May 12, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Plot paths for all ID to get a sense of change
+
+
+
+
+
+
+
+
+
+Can we use a differnt type of coding for factors?
+
+Ask about centering age and income. and plotting when interactions in model.
+
+Ask about testing or mean differences at pre and post when interaction.
+
+ask if t reliable. Report p-value of t?
+
+effect size
+
+
+
+
+copy functions
+
+
+references for r packages and r studio
+
+
+poison with log-link
+
+
+
+Congeneric reliability referemce
+
+incorporate image of measures
+
+Ask about effect sizes
+
+
+
+sphericity, multiple covariates, homogeneity of variance, cross-level interactions, interactions between covariates, 
+
+Assumptions:  
+    •	there is cluserting: ICC says
+•	Outcome is normally distributed within groups (domains, covariates, etc.).
+
+
+2 level random intercept regression model 
+2 levels are 
+•	Level 1: Observations
+•	Level 2: Participant
+Domain is a level 1 fixed factor
+All other vars are level 2: 
+    Random intercepts accounting for person to person variance while accounting for correlation between domains. 
+
+
+

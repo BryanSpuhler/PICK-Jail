@@ -1,0 +1,1414 @@
+---
+title: "Jail Pilot Mixed Methods Evaluation"
+subtitle: "Quantitative Analyses and Results"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  pdf_document: 
+    toc: true
+    toc_depth: 4
+    number_sections: true
+csl: apa.csl
+fontsize: 11pt
+mainfont: Century
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA)
+
+library(tidyverse)
+library(furniture)
+library(corrplot)
+
+load(file="./Data/Jail_clean_long.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean_longlong.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean_longlong2.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean_long2.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean.Rda", verbose = FALSE)
+load(file="./Data/PICK_clean.fscore_long.Rda", verbose = FALSE)
+
+
+
+## tableM
+
+tableM = function(.data, ..., resp.opts = NULL){
+  
+  ## Iniital objects
+  .call      = match.call()
+  list_vars  = eval(substitute(list(...)), .data)
+  df         = do.call("data.frame", list_vars)
+  df         = data.frame(df)
+  names(df)  = paste(substitute(list(...)))[-1]
+
+  final_list = list()
+  
+  ## Creating counts
+  for(i in names(df)){
+    
+      var = df[i]
+      ## Summary statistics
+      Freq = table(var, useNA="ifany")
+
+      ## If there is missing, add a blank line below the valids
+      if (any(is.na(var))){
+          names(Freq)[length(names(Freq))] = "Missing_Missing_Missing.Missing"
+          final = data.frame("Var"     = names(Freq),
+                             "Freq"    = as.character(Freq))
+          names(final) = c("Value", i) 
+          final[] = lapply(final, as.character)
+      } else {
+          final = data.frame("Var"     = names(Freq),
+                             "Freq"    = as.character(Freq))
+          names(final) = c("Value", i) 
+          final[] = lapply(final, as.character)
+      }
+  
+  final_list[[i]] = final
+  
+  }
+
+  
+  ## Join all count tables
+  table.part0 <- purrr::reduce(final_list, dplyr::full_join, by = "Value")
+  
+  ## Replace NAs with 0.
+  table.part0[is.na(table.part0)] <- 0
+  ## Make counts numeric, but not labels
+  table.part0[, c(2:ncol(table.part0))] <- sapply(table.part0[, c(2:ncol(table.part0))],
+                                                  as.numeric)
+  ## Removes row of missing values
+  table.part1 <- table.part0[which(table.part0$Value != "Missing_Missing_Missing.Missing"),]
+  ## Adds total (if no missing)/valid total (if missing; name changed below)
+  table.part1 <- janitor::adorn_totals(table.part1, which = "row")
+  
+  # Different approaches are used based on whether there are missing data.      
+  if('Missing_Missing_Missing.Missing' %in% table.part0$Value){
+  
+    # Changes "Total" to "Valid Total" in table.part1
+    table.part1[nrow(table.part1),1] <- "Valid Total"
+    # Caclulates total including missing
+    table.part2 = janitor::adorn_totals(table.part0, which = "row")
+    # Select "Missing" row and "Total" row
+    table.part2 <-  table.part2[which(table.part2$Value == "Missing_Missing_Missing.Missing" | 
+                                         table.part2$Value == "Total"),]
+    # Rename "Missing" row
+    table.part2[1,1] <- "Missing"
+    # Combine table components
+    table.final = rbind(table.part1, "---", table.part2)
+    
+  } else {
+      
+    table.final = table.part1
+    
+  }
+
+  ## Adjusting response options (changing order). Must be spelled correctly. Can include extra levels.  
+  if (!is.null(resp.opts)){ 
+    if ('Missing' %in% table.final$Value){
+      
+      rownames(table.final) = table.final$Value
+      table.final = table.final[c(resp.opts, "Valid Total", "---", "Missing", "Total"), ]
+    
+    } else {
+      
+      rownames(table.final) = table.final$Value
+      table.final = table.final[c(resp.opts, "Total"), ]
+  
+    }
+  }
+  
+  rownames(table.final) <- NULL
+  table.final
+    
+}
+
+# Source: https://stackoverflow.com/questions/12643391/how-to-remove-leading-0-in-a-numeric-r-variable
+
+
+# Format a number to have 3 decimal places, but no 0 before decimal.
+
+numformat_no0 <- function(val) { sub("^(-?)0.", "\\1.", sprintf("%.3f", val)) }
+
+
+# Format a number to have 3 decimal places
+
+numformat <- function(val) {  noquote(formatC(val, format = "f", digits = 3)) }
+
+# Format p-value with no 0 before decimal.
+
+pvaluer <- function(p) {
+    if(p < .001){
+        p_formatted = "*p* < .001"
+    }
+    else{
+        p_formatted = paste0("*p* = ", numformat_no0(p))
+    }
+    
+return(p_formatted)    
+    }
+
+# Format p-value resulting from ANOVA
+
+pvaluer_anova <- function(p){
+
+    p1 = noquote(formatC(p, format = "f", digits = 3))
+    
+    if(p1 < .001){
+        p_formatted = "*p* < .001"
+    }
+    else{
+        p_formatted = paste0("*p* = ", numformat_no0(as.numeric(p1)))
+    }
+    
+return(p_formatted)            
+    
+}
+
+
+
+# Format Chi-square
+format_chi = function(chi){
+    
+    formatted_chi = noquote(formatC(chi, format = "f", digits = 3))
+    return(formatted_chi)
+    }
+
+
+
+```
+
+\newpage
+
+# Univariate Type III Repeated-Measures ANOVA
+
+## Testing with and without Assumpsion of Sphericity.
+
+* Significant even after correcting for departure from sphericity
+* "Sphericity is an important assumption of a repeated-measures ANOVA. It refers to the condition where the variances of the differences between all possible pairs of within-subject conditions (i.e., levels of the independent variable) are equal." (https://en.wikipedia.org/wiki/Mauchly%27s_sphericity_test)
+
+
+```{r, warning=FALSE, echo = FALSE}
+
+# WARNING TURNED OFF !
+aov_gains <- afex::aov_4(Change.Score ~ 1 + (var|ID),
+            data = PICK_clean_long)
+
+summary(aov_gains)
+```
+
+## Pillai test statistic
+
+```{r, echo = FALSE}
+aov_gains$Anova
+```
+
+## Paired Comparisons
+
+```{r, echo = FALSE}
+aov_gains %>% 
+    emmeans::emmeans(~ var)
+```
+
+## Paired Comparisons with Tukey Adjustment
+
+```{r, echo=FALSE}
+aov_gains %>% 
+    emmeans::emmeans(~ var) %>% 
+    pairs(adjust = "tukey")
+```
+
+\newpage
+
+## Plot with Confidence Intervals
+
+```{r, echo = FALSE}
+aov_gains %>% 
+    emmeans::emmip(~var, CIs = TRUE)
+```
+
+
+# MLM Analyses
+
+## Calculating ICC
+
+* Indicates how much variance in change scores is between respondents vs. within respondents (i.e., across outcomes). A little over half of the variance is between respondents. So change scores vary both between respondents and within respondents (across outcomes).
+
+```{r, include = FALSE}
+mlm.change.baseline.RE <- lme4::lmer(Change.Score ~ 1 + (1|ID),
+                                  data = PICK_clean_long,
+                                  REML = TRUE)
+
+```
+
+```{r, echo = FALSE}
+sjstats::icc(mlm.change.baseline.RE)
+
+```
+
+\newpage
+
+## Baseline Model: No Predictors
+
+
+```{r, echo = FALSE}
+mlm.change.baseline.ML <- lme4::lmer(Change.Score ~ 1 + (1|ID),
+                                  data = PICK_clean_long,
+                                  REML = FALSE)
+
+print(summary(mlm.change.baseline.ML), digits = 3)
+
+```
+
+
+\newpage
+## Model Examining Effect of Outcome Level
+
+```{r, echo = FALSE}
+mlm.change.no.preds.ML <- lme4::lmer(Change.Score ~ var + (1|ID), 
+                                     data = PICK_clean_long, 
+                                     REML = FALSE)
+
+print(summary(mlm.change.no.preds.ML), digits = 3)
+```
+\newpage
+### Model Comparison: Testing the Effect of the Outcome Level
+
+```{r, echo = FALSE}
+compar.var <- anova(mlm.change.baseline.ML, mlm.change.no.preds.ML)
+
+compar.var
+```
+
+The effect of outcome level was significant ($\chi^2$ = `r noquote(formatC(compar.var$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.var$"Chi Df"[2]`, `r pvaluer(noquote(formatC(compar.var$"Pr(>Chisq)"[2], format = "f", digits = 3)))`), indicating that at least one outcome had a significantly higher change score than another.
+
+
+### Pairwise Comparisons of Mean Change Scores by Outcome Level
+
+* Ask Sarah for reference: kenward-roger (p.34 text)
+* Any pair that does not share a Group Number is significantly different (see http://www.tandfonline.com/doi/pdf/10.1198/1061860043515)
+
+```{r, echo = FALSE}
+mlm.change.no.preds.ML %>% emmeans::emmeans(~var) %>% emmeans::cld()
+```
+\newpage
+
+### Plot of Model Only Examining Outcome "Level" and Change
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var"),
+                mod = mlm.change.no.preds.ML) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+                      linetype = "dotted"),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      linetype = "solid"),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point() +
+    geom_line()+
+    guides(linetype = FALSE) +
+    ggtitle("Estimated Change from Pre to Post by Outcome") + 
+    theme_bw()
+```
+
+\newpage
+
+## Adding All Predictors
+
+```{r, message = FALSE, echo = FALSE}
+mlm.change.2.ML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                               + Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                Number_Attended + Gender + 
+                               Divorced_Dichotomous + 
+                               var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+print(summary(mlm.change.2.ML), digits = 3)
+
+```
+
+\newpage
+### Collapsing Dosage
+
+```{r, message = FALSE, echo = FALSE}
+mlm.change.3.ML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                               + Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                Dosage + Gender + 
+                               Divorced_Dichotomous + 
+                               var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+print(summary(mlm.change.3.ML), digits = 3)
+
+```
+
+\newpage
+### Examining Age Categories Instead of Continuous Age
+
+```{r, message = FALSE, echo = FALSE}
+mlm.change.4.ML <- lme4::lmer(Change.Score ~ Age_Groups + Ethnic_Code + Education_collapsed + 
+                               + Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                               Dosage + Gender + 
+                               Divorced_Dichotomous + 
+                               var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+print(summary(mlm.change.4.ML), digits = 3)
+
+```
+
+\newpage
+
+### Model Comparison: Testing whether the Addition of all Predictors Improves Model Fit
+
+* Dosage is collaped to two categories.
+* Age is continuous.
+
+```{r, echo = FALSE}
+compar.preds <- anova(mlm.change.no.preds.ML, mlm.change.3.ML)
+
+compar.preds
+
+```
+
+The addition of all predictors significantly improved model fit ($\chi^2$ = `r noquote(formatC(compar.preds$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.preds$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.preds$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+### Testing Main Effects
+
+#### Testing Significance of Main Effects
+
+```{r, include = FALSE}
+
+
+
+mlm.change.drop.AgeCont.ML <- lme4::lmer(Change.Score ~ Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                   Dosage + Gender + Divorced_Dichotomous + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+mlm.change.drop.AgeCat.ML <- lme4::lmer(Change.Score ~ Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                   Dosage + Gender + Divorced_Dichotomous + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+mlm.change.drop.Ethnicity.ML <- lme4::lmer(Change.Score ~ Age_Decades +  Education_collapsed + 
+                                   Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                   Dosage + Gender + Divorced_Dichotomous + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+mlm.change.drop.Educ.ML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code +  
+                                   Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                   Dosage + Gender + Divorced_Dichotomous + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.RelEd.ML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   FinancialWorry_cat + 
+                                   Dosage + Gender + Divorced_Dichotomous + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Fin.ML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation_collapsed +  
+                                   Dosage + Gender + Divorced_Dichotomous + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Inc.ML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                    Dosage + Gender + Divorced_Dichotomous + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Dos.ML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                   Gender + Divorced_Dichotomous + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Gen.ML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                   Dosage +  Divorced_Dichotomous + 
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+mlm.change.drop.Div.ML <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                                   Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                                   Dosage + Gender +  
+                                   var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+
+
+
+```
+
+
+
+
+##### Age (Continuous) 
+
+```{r, include = FALSE}
+compar.age.cont <- anova(mlm.change.3.ML, mlm.change.drop.AgeCont.ML)
+
+compar.age.cont
+```
+
+Age (continuous) was not a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.age.cont$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.age.cont$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.age.cont$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+##### Age (Categorical) 
+
+```{r, include = FALSE}
+compar.age.cat <- anova(mlm.change.4.ML, mlm.change.drop.AgeCat.ML)
+
+compar.age.cat
+```
+
+Age (categorical) was not a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.age.cat$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.age.cat$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.age.cat$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+\newpage
+##### Race/Ethnicity 
+
+```{r, include = FALSE}
+compar.race <- anova(mlm.change.3.ML, mlm.change.drop.Ethnicity.ML)
+
+compar.race
+```
+
+Race/Ethnicity was a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.race$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.race$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.race$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+###### Pairwise Comparisons of Mean Change Scores by Race/Ethnicity
+
+```{r, echo = FALSE}
+mlm.change.3.ML %>% emmeans::emmeans(~Ethnic_Code) %>% emmeans::cld()
+```
+
+Only "Hispanic/Latino" and "Other" are significantly different. 
+
+##### Education 
+
+```{r, include = FALSE}
+compar.educ <- anova(mlm.change.3.ML, mlm.change.drop.Educ.ML)
+
+compar.educ
+```
+
+Education was not a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.educ$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.educ$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.educ$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+##### Prior Relationship Education 
+
+```{r, include = FALSE}
+compar.reled <- anova(mlm.change.3.ML, mlm.change.drop.RelEd.ML)
+
+compar.reled
+```
+
+Prior Relationship Education was a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.reled$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.reled$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.reled$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+
+##### Financial Worry 
+
+```{r, include = FALSE}
+compar.finwor <- anova(mlm.change.3.ML, mlm.change.drop.Fin.ML)
+
+compar.finwor
+```
+
+Financial worry was not a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.finwor$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.finwor$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.finwor$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+
+##### Dosage 
+
+```{r, include = FALSE}
+compar.dosage <- anova(mlm.change.3.ML, mlm.change.drop.Dos.ML)
+
+compar.dosage
+```
+
+Dosage was a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.dosage$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.dosage$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.dosage$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+##### Gender 
+
+```{r, include = FALSE}
+compar.gender <- anova(mlm.change.3.ML, mlm.change.drop.Gen.ML)
+
+compar.gender
+```
+
+Gender worry was not a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.gender$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.gender$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.gender$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+##### Divorce history
+
+```{r, include = FALSE}
+compar.divorce <- anova(mlm.change.3.ML, mlm.change.drop.Div.ML)
+
+compar.divorce
+```
+
+Divorce history worry was not a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.divorce$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.divorce$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.divorce$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+
+#### Pairwise Comparisons of Mean Change Scores by Outcome Level After Controlling for Covariates
+
+* Ask Sarah for reference: kenward-roger (p.34 text)
+* Any pair that does not share a Group Number is significantly different (see http://www.tandfonline.com/doi/pdf/10.1198/1061860043515)
+
+```{r, echo = FALSE}
+mlm.change.3.ML %>% emmeans::emmeans(~var) %>% emmeans::cld()
+```
+
+\newpage
+
+### Final Model Estimates
+
+#### Refitting Final Model with REML
+
+```{r, echo = FALSE, message=FALSE}
+mlm.change.3.RE <- lme4::lmer(Change.Score ~ Age_Decades + Ethnic_Code + Education_collapsed + 
+                               + Prior_RshpEducation_collapsed + FinancialWorry_cat + 
+                               Dosage + Gender + 
+                               Divorced_Dichotomous + 
+                               var + (1|ID),
+                           data = PICK_clean_long,
+                           REML = FALSE)
+
+print(summary(mlm.change.3.RE), digits = 3)
+
+```
+
+\newpage
+
+##### Table
+
+```{r, echo = FALSE}
+
+texreg::screenreg(list(#    mlm.change.baseline.ML,
+                       mlm.change.no.preds.ML,
+                       mlm.change.3.ML,
+                       mlm.change.3.RE))
+
+```
+
+\newpage
+
+#### Plotting the Effect of Predictors
+
+* Should this be based on REML or ML?
+
+##### Race/Ethnicity
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Ethnic_Code"),
+                mod = mlm.change.3.RE) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Race/Ethnicity` = factor(Ethnic_Code)) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Race/Ethnicity`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Race/Ethnicity`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Race/Ethnicity`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Race/Ethnicity on Change from Pre to Post") + 
+    theme_bw()
+```
+
+\newpage
+
+##### Prior Relationship Education
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Prior_RshpEducation_collapsed"),
+                mod = mlm.change.3.RE) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Prior Rel. Educ` = factor(Prior_RshpEducation_collapsed,
+                                             levels = c("None",
+                                                        "Some/A lot"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Prior Rel. Educ`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Prior Rel. Educ`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Prior Rel. Educ`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Prior Rel. Educ on Change from Pre to Post") + 
+    theme_bw()
+```
+
+\newpage
+
+##### Dosage
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Dosage"),
+                mod = mlm.change.3.RE) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = Dosage,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = Dosage,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = Dosage),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Dosage Level on Change from Pre to Post") + 
+    theme_bw()
+```
+\newpage
+
+## Trimming Non-Significant Predictors
+
+```{r, message = FALSE, echo = FALSE}
+mlm.change.trimmed.ML <- lme4::lmer(Change.Score ~ Ethnic_Code + 
+                                     Prior_RshpEducation_collapsed + Dosage + 
+                                   var + (1|ID), data = PICK_clean_long, REML = FALSE)
+
+print(summary(mlm.change.trimmed.ML), digits = 3)
+
+
+```
+
+\newpage
+
+### Model Comparison: Testing whether the Removal of Non-Significan Predictors Affects Model Fit
+
+
+```{r, include = FALSE}
+compar.preds.trimmed <- anova(mlm.change.3.ML, mlm.change.trimmed.ML)
+
+compar.preds.trimmed
+
+```
+
+The addition of all predictors significantly improved model fit ($\chi^2$ = `r noquote(formatC(compar.preds.trimmed$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.preds.trimmed$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.preds.trimmed$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+### Testing Main Effects 
+
+```{r, include = FALSE}
+
+mlm.change.trimmed.dropRace.ML <- lme4::lmer(Change.Score ~  
+                                     Prior_RshpEducation_collapsed + Dosage + 
+                                   var + (1|ID), data = PICK_clean_long, REML = FALSE)
+
+mlm.change.trimmed.dropRelEd.ML <- lme4::lmer(Change.Score ~ Ethnic_Code + 
+                                       Dosage + 
+                                   var + (1|ID), data = PICK_clean_long, REML = FALSE)
+
+
+mlm.change.trimmed.dropDosage.ML <- lme4::lmer(Change.Score ~ Ethnic_Code + 
+                                     Prior_RshpEducation_collapsed +  
+                                   var + (1|ID), data = PICK_clean_long, REML = FALSE)
+
+
+
+```
+
+#### Race/Ethnicity 
+
+```{r, include = FALSE}
+compar.race.T <- anova(mlm.change.trimmed.ML, mlm.change.trimmed.dropRace.ML)
+
+compar.race.T
+```
+
+Race/Ethnicity was not quite a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.race.T$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.race.T$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.race.T$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+##### Pairwise Comparisons of Mean Change Scores by Race/Ethnicity
+
+```{r, echo = FALSE}
+mlm.change.trimmed.ML %>% emmeans::emmeans(~Ethnic_Code) %>% emmeans::cld()
+```
+
+No significant differences. Because it was significant in the larger model, we should report the larger model (or an abreviated versions of it) rather than the trimmed model). 
+
+#### Prior Relationship Education 
+
+```{r, include = FALSE}
+compar.reled.T <- anova(mlm.change.trimmed.ML, mlm.change.trimmed.dropRelEd.ML)
+
+compar.reled.T
+```
+
+Prior Relationship Education was a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.reled.T$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.reled.T$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.reled.T$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+#### Dosage 
+
+```{r, include = FALSE}
+compar.dosage.T <- anova(mlm.change.trimmed.ML, mlm.change.trimmed.dropDosage.ML)
+
+compar.dosage.T
+```
+
+Prior Relationship Education was a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.dosage.T$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.dosage.T$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.dosage.T$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+\newpage
+
+#### Pairwise Comparisons of Mean Change Scores by Outcome Level After Controlling for Covariates
+
+```{r, echo = FALSE}
+mlm.change.trimmed.ML %>% emmeans::emmeans(~var) %>% emmeans::cld()
+```
+\newpage
+### Trimmed Model Estimates
+
+#### Refitting Trimmed Model with REML
+
+```{r, echo = FALSE, message=FALSE}
+mlm.change.trimmed.RE <- lme4::lmer(Change.Score ~ Ethnic_Code + 
+                                     Prior_RshpEducation_collapsed + Dosage + 
+                                   var + (1|ID), data = PICK_clean_long, REML = TRUE)
+
+print(summary(mlm.change.trimmed.RE), digits = 3)
+
+```
+\newpage
+##### Table
+
+```{r, echo = FALSE}
+
+texreg::screenreg(list(mlm.change.baseline.ML,
+                       mlm.change.no.preds.ML,
+                       mlm.change.trimmed.ML,
+                       mlm.change.trimmed.RE))
+
+```
+
+
+\newpage
+
+#### Plotting the Effect of Predictors
+
+* Should this be based on REML or ML?
+
+##### Race/Ethnicity
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Ethnic_Code"),
+                mod = mlm.change.trimmed.RE) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Race/Ethnicity` = factor(Ethnic_Code)) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Race/Ethnicity`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Race/Ethnicity`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Race/Ethnicity`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Race/Ethnicity on Change from Pre to Post") + 
+    theme_bw()
+```
+
+\newpage
+
+##### Prior Relationship Education
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Prior_RshpEducation_collapsed"),
+                mod = mlm.change.trimmed.RE) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Prior Rel. Educ` = factor(Prior_RshpEducation_collapsed,
+                                             levels = c("None",
+                                                        "Some/A lot"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Prior Rel. Educ`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Prior Rel. Educ`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Prior Rel. Educ`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Prior Rel. Educ on Change from Pre to Post") + 
+    theme_bw()
+```
+
+\newpage
+
+##### Dosage
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Dosage"),
+                mod = mlm.change.trimmed.RE) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = Dosage,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = Dosage,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = Dosage),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Dosage Level on Change from Pre to Post") + 
+    theme_bw()
+```
+\newpage
+
+## Fitting Trimmed Model on All Available Data (i.e., using individuals droped because of missing data only on non-significant predictors)
+
+### Model Building and Comparison
+
+```{r, message = FALSE, include = FALSE}
+mlm.change.baseline.all.ML <- lme4::lmer(Change.Score ~ 1 + (1|ID),
+                                  data = PICK_clean_long2,
+                                  REML = FALSE)
+
+mlm.change.baseline.all.ML
+
+
+```
+
+
+```{r, include=FALSE}
+mlm.change.no.preds.all.ML <- lme4::lmer(Change.Score ~ var + (1|ID), 
+                                     data = PICK_clean_long2, 
+                                     REML = FALSE)
+
+print(summary(mlm.change.no.preds.all.ML), digits = 3)
+```
+
+
+```{r, message = FALSE, include = FALSE}
+mlm.change.trimmed.all.ML <- lme4::lmer(Change.Score ~ Ethnic_Code + 
+                                     Prior_RshpEducation_collapsed + Dosage + 
+                                   var + (1|ID), data = PICK_clean_long2, REML = FALSE)
+
+print(summary(mlm.change.trimmed.all.ML), digits = 3)
+
+
+```
+
+
+```{r, include = FALSE}
+compar.vars.all.trimmed <- anova(mlm.change.baseline.all.ML, mlm.change.no.preds.all.ML)
+
+compar.vars.all.trimmed
+
+compar.preds.all.trimmed <- anova(mlm.change.no.preds.all.ML, mlm.change.trimmed.all.ML)
+
+compar.preds.all.trimmed
+
+```
+
+The effect of outcome level was significant ($\chi^2$ = `r noquote(formatC(compar.vars.all.trimmed$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.vars.all.trimmed$"Chi Df"[2]`, `r pvaluer(noquote(formatC(compar.vars.all.trimmed$"Pr(>Chisq)"[2], format = "f", digits = 3)))`), indicating that at least one outcome had a significantly higher change score than another.
+
+The addition of predictors significantly improved model fit ($\chi^2$ = `r noquote(formatC(compar.preds.all.trimmed$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.preds.all.trimmed$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.preds.all.trimmed$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+### Testing Individual Main Effects 
+
+```{r, include = FALSE}
+
+mlm.change.trimmed.all.dropRace.ML <- lme4::lmer(Change.Score ~  
+                                     Prior_RshpEducation_collapsed + Dosage + 
+                                   var + (1|ID), data = PICK_clean_long2, REML = FALSE)
+
+mlm.change.trimmed.all.dropRelEd.ML <- lme4::lmer(Change.Score ~ Ethnic_Code + 
+                                       Dosage + 
+                                   var + (1|ID), data = PICK_clean_long2, REML = FALSE)
+
+
+mlm.change.trimmed.all.dropDosage.ML <- lme4::lmer(Change.Score ~ Ethnic_Code + 
+                                     Prior_RshpEducation_collapsed +  
+                                   var + (1|ID), data = PICK_clean_long2, REML = FALSE)
+
+
+
+```
+
+#### Race/Ethnicity 
+
+```{r, include = FALSE}
+compar.race.T.all <- anova(mlm.change.trimmed.all.ML, mlm.change.trimmed.all.dropRace.ML)
+
+compar.race.T.all
+```
+
+Race/Ethnicity was a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.race.T.all$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.race.T.all$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.race.T.all$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+##### Pairwise Comparisons of Mean Change Scores by Race/Ethnicity
+
+```{r, echo = FALSE}
+mlm.change.trimmed.all.ML %>% emmeans::emmeans(~Ethnic_Code) %>% emmeans::cld()
+```
+
+Hispanic/Latino significantly diffrent from both Caucasian and Other.
+
+#### Prior Relationship Education 
+
+```{r, include = FALSE}
+compar.reled.T.all <- anova(mlm.change.trimmed.all.ML, mlm.change.trimmed.all.dropRelEd.ML)
+
+compar.reled.T.all
+```
+
+Prior Relationship Education was a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.reled.T.all$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.reled.T.all$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.reled.T.all$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+\newpage
+
+#### Dosage 
+
+```{r, include = FALSE}
+compar.dosage.T.all <- anova(mlm.change.trimmed.all.ML, mlm.change.trimmed.all.dropDosage.ML)
+
+compar.dosage.T.all
+```
+
+Prior Relationship Education was a significant predictor of change ($\chi^2$ = `r noquote(formatC(compar.dosage.T.all$Chisq[2], format = "f", digits = 2))`, *df* = `r compar.dosage.T.all$"Chi Df"[2]`, `r pvaluer(as.numeric(noquote(formatC(compar.dosage.T.all$"Pr(>Chisq)"[2], format = "f", digits = 3))))`).
+
+#### Pairwise Comparisons of Mean Change Scores by Outcome Level After Controlling for Covariates with All Available Data
+
+```{r, echo = FALSE}
+mlm.change.trimmed.all.ML %>% emmeans::emmeans(~var) %>% emmeans::cld()
+```
+
+\newpage
+
+### Trimmed Model Estimates on All Available Data
+
+#### Refitting Trimmed Model with REML
+
+```{r, echo = FALSE, message=FALSE}
+mlm.change.trimmed.all.RE <- lme4::lmer(Change.Score ~ Ethnic_Code + 
+                                     Prior_RshpEducation_collapsed + Dosage + 
+                                   var + (1|ID), data = PICK_clean_long2, REML = TRUE)
+
+print(summary(mlm.change.trimmed.all.RE), digits = 3)
+
+```
+
+\newpage
+
+
+```{r, echo = FALSE}
+
+texreg::screenreg(list(mlm.change.baseline.all.ML,
+                       mlm.change.no.preds.all.ML,
+                       mlm.change.trimmed.all.ML,
+                       mlm.change.trimmed.all.RE))
+
+```
+
+
+\newpage
+
+#### Plotting the Effect of Predictors
+
+* Should this be based on REML or ML?
+
+##### Race/Ethnicity
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Ethnic_Code"),
+                mod = mlm.change.trimmed.all.RE) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Race/Ethnicity` = factor(Ethnic_Code)) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Race/Ethnicity`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Race/Ethnicity`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Race/Ethnicity`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Race/Ethnicity on Change from Pre to Post") + 
+    theme_bw()
+```
+
+\newpage
+
+
+##### Prior Relationship Education
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Prior_RshpEducation_collapsed"),
+                mod = mlm.change.trimmed.all.RE) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Prior Rel. Educ` = factor(Prior_RshpEducation_collapsed,
+                                             levels = c("None",
+                                                        "Some/A lot"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = `Prior Rel. Educ`,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = `Prior Rel. Educ`,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = `Prior Rel. Educ`),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Prior Rel. Educ on Change from Pre to Post") + 
+    theme_bw()
+```
+
+\newpage
+
+
+
+##### Dosage
+
+```{r, echo =FALSE}
+effects::Effect(focal.predictors = c("var", "Dosage"),
+                mod = mlm.change.trimmed.all.RE) %>% 
+    data.frame %>% 
+    dplyr::mutate(Outcome = factor(var,
+                               levels = c("Healthy_Rel_Skills_Change",
+                                          "Partner_Selection_Change",
+                                          "Past_Rel_Behav_Change",
+                                          "Rel_Behav_Attit_Change"),
+                               labels = c("Healthy Rel. Skills",
+                                          "Partner Selection",
+                                          "Past Rel. Beh.",
+                                          "Rel. Beh. and Attitudes"))) %>% 
+    dplyr::mutate(`Estimated Change: Post - Pre` = fit) %>% 
+    ggplot(aes(x = Outcome,
+               y = `Estimated Change: Post - Pre`)) +
+    geom_errorbar(aes(ymin = lower,
+                      ymax = upper,
+               color = Dosage,
+               linetype = "dotted"),
+              position = position_dodge(),
+                  width = .25) +
+    geom_errorbar(aes(ymin = `Estimated Change: Post - Pre` - se,
+                      ymax = `Estimated Change: Post - Pre` + se,
+                      color = Dosage,
+                      linetype = "solid"),
+               position = position_dodge(),
+                  width = .25) +
+    ylim(0,3) +
+    geom_point(aes(color = Dosage),
+                   position = position_dodge(width = .25)) +
+    guides(linetype = FALSE) +
+    # geom_line()+
+    ggtitle("Effect of Dosage Level on Change from Pre to Post") + 
+    theme_bw()
+```
+
+\newpage
+
+
+# Textual Summary
+
+## Methods (using results from full model; will need to edit if using trimmed model)
+
+
+To examine the impact of the program quantitatively, we looked at gains (post – pre) on the four key outcomes (Skills, Partner Selection, Relationship Patterns, Behavior and Attitudes) described above. First, we tested whether the average gain across all four outcomes was significant. As the assumption of sphericity was violated, we used a linear mixed effects model instead of a repeated measures MANOVA. Specifically, we used a random intercept multilevel regression model (RI MLM). We then tested whether change differed by outcome. We then examined whether change varied by age, ethnicity, prior relationship education, the number of classes attended (dosage), education level, financial worry, income, gender, and divorce history. Full details and results of quantitative analyses are available upon request. 
+
+### Notes on Methods Section 
+
+* Add short descriptors to the factor descriptions used below to the measurement section. 
+
+
+## Results
+
+```{r, include = FALSE}
+Average_Gain_b <- summary(mlm.change.baseline.ML)
+
+Average_Gain_b <- Average_Gain_b$coefficients[1]
+
+Average_Gain_t <- summary(mlm.change.baseline.ML)
+
+Average_Gain_t <- Average_Gain_t$coefficients[3]
+
+# Average_Gain_p How do I get a p?
+
+Gain_outcome_b <- summary(mlm.change.3.RE)
+
+Rel_skills_b = (Gain_outcome_b$coefficients %>% 
+    data.frame() %>% 
+    tibble::rownames_to_column() %>% 
+    dplyr::select(rowname, Estimate) %>% 
+    dplyr::filter(rowname == "(Intercept)") %>% 
+        dplyr::select(Estimate))
+
+Partner_b = (Gain_outcome_b$coefficients %>% 
+    data.frame() %>% 
+    tibble::rownames_to_column() %>% 
+    dplyr::select(rowname, Estimate) %>% 
+    dplyr::filter(rowname == "(Intercept)") %>% 
+        dplyr::select(Estimate)) + 
+        (Gain_outcome_b$coefficients %>% 
+             data.frame() %>% 
+             tibble::rownames_to_column() %>% 
+             dplyr::select(rowname, Estimate) %>% 
+             dplyr::filter(rowname == "varPartner_Selection_Change")) %>% 
+            dplyr::select(Estimate)
+
+
+Patterns_b = (Gain_outcome_b$coefficients %>% 
+    data.frame() %>% 
+    tibble::rownames_to_column() %>% 
+    dplyr::select(rowname, Estimate) %>% 
+    dplyr::filter(rowname == "(Intercept)")) %>% 
+            dplyr::select(Estimate) + 
+        (Gain_outcome_b$coefficients %>% 
+             data.frame() %>% 
+             tibble::rownames_to_column() %>% 
+             dplyr::select(rowname, Estimate) %>% 
+             dplyr::filter(rowname == "varPast_Rel_Behav_Change")) %>% 
+            dplyr::select(Estimate)
+
+
+Behav_b = (Gain_outcome_b$coefficients %>% 
+    data.frame() %>% 
+    tibble::rownames_to_column() %>% 
+    dplyr::select(rowname, Estimate) %>% 
+    dplyr::filter(rowname == "(Intercept)")) %>% 
+            dplyr::select(Estimate) + 
+        (Gain_outcome_b$coefficients %>% 
+             data.frame() %>% 
+             tibble::rownames_to_column() %>% 
+             dplyr::select(rowname, Estimate) %>% 
+             dplyr::filter(rowname == "varRel_Behav_Attit_Change"))%>% 
+            dplyr::select(Estimate)
+
+
+reled_b = (Gain_outcome_b$coefficients %>% 
+    data.frame() %>% 
+    tibble::rownames_to_column() %>% 
+    dplyr::select(rowname, Estimate) %>% 
+    dplyr::filter(rowname == "Prior_RshpEducation_collapsedSome/A lot") %>% 
+        dplyr::select(Estimate))
+
+dosage_b = (Gain_outcome_b$coefficients %>% 
+    data.frame() %>% 
+    tibble::rownames_to_column() %>% 
+    dplyr::select(rowname, Estimate) %>% 
+    dplyr::filter(rowname == "DosageFull") %>% 
+        dplyr::select(Estimate))
+
+```
+
+
+
+Analyses using multilevel regression (RI MLM) indicated that, on average, participants reported gains in knowledge and skills ($\beta$ = `r round(Average_Gain_b,2)`, *df* = 1, *t* = `r round(Average_Gain_t,2)`). The amount of change reported by participants varied by outcome (Skills, $\beta$ = `r round(Rel_skills_b$Estimate,2)`; Partner Selection, $\beta$ = `r round(Partner_b$Estimate,2)`; Relationship Patterns, $\beta$ = `r round(Patterns_b$Estimate,2)`; and Behavior and Attitudes, $\beta$ = `r round(Behav_b$Estimate,2)`;), but was significantly greater than 0 for all outcomes even after controlling for age, ethnicity, prior relationship education, the number of classes attended (dosage), education level, financial worry, income, gender, and divorce history. 
+
+Our analyses also tested for predictors of change The amount of change reported by participants varied by race/ethnicity, prior experience with relationship education, and dosage. Although the addition of race/ethnicity indicators to the model significantly improved model fit, post-hoc analyses (available on request) indicated that individuals who identified as Hispanic/Latino gained significantly more on average than individuals who identified with a race in the "Another race" category; no other group comparisons were significant. Participants who had previously received relationship education through courses, counseling, workshops, etc. gained less than those who had not ($\beta$ = `r round(reled_b$Estimate,2)`). Participants who participated in all 3 classes gained more than those who participated in only 1 or 2 ($\beta$ = `r round(dosage_b$Estimate,2)`).
+
+### Notes on Results Section 
+
+* Can we get a p-value for average gains?
+* Can we get p-values on comparisons using kenward-roger method? For dichtomous, would the anova p-values be appropriate? What about betas for race/ethnicity?
+* Which betas should we report? Don't match table currently.
+* How do we get effect sizes?
+* Make sure methods section says "Another race" rather than "Other"
+
+
+
+
+
+
+
+
+

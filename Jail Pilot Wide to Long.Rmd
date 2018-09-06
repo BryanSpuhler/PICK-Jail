@@ -1,0 +1,320 @@
+---
+title: "Jail Pilot Wide to Long"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Creating Long Dataset
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+Jail_clean_long <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample == TRUE) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnic_Code, 
+                  Race_Dichotomous,
+                  Education_collapsed,
+                  Education_3cat,
+                  Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Number_Attended,
+                  Dosage,
+                  Gender,
+                  Divorced_Dichotomous,
+                  Healthy_Rel_Skills_Change,
+                  Partner_Selection_Change,
+                  Past_Rel_Behav_Change,
+                  Rel_Behav_Attit_Change) %>% 
+    tidyr::gather(key = var,
+                  value = Change.Score,
+                  Healthy_Rel_Skills_Change,
+                  Partner_Selection_Change,
+                  Past_Rel_Behav_Change,
+                  Rel_Behav_Attit_Change) %>% 
+    dplyr::mutate_at(vars(ID, var), factor) %>% 
+    dplyr::arrange(ID, var) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+
+```{r}
+Jail_clean_long
+```
+
+# Creating Long Dataset with all available data on significant predictors
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on significant predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+Jail_clean_long2 <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample2 == TRUE) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnic_Code, 
+                  Race_Dichotomous,
+                  Education_collapsed,
+                  Education_3cat,
+                  Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Number_Attended,
+                  Dosage,
+                  Gender,
+                  Divorced_Dichotomous,
+                  Healthy_Rel_Skills_Change,
+                  Partner_Selection_Change,
+                  Past_Rel_Behav_Change,
+                  Rel_Behav_Attit_Change) %>% 
+    tidyr::gather(key = var,
+                  value = Change.Score,
+                  Healthy_Rel_Skills_Change,
+                  Partner_Selection_Change,
+                  Past_Rel_Behav_Change,
+                  Rel_Behav_Attit_Change) %>% 
+    dplyr::mutate_at(vars(ID, var), factor) %>% 
+    dplyr::arrange(ID, var) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+```{r}
+Jail_clean_long2
+```
+
+
+# Creating Long long Dataset for MLM over TIme
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+Jail_clean_longlong <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::rename(Healthy_Rel_SkillsPost = Healthy_Rel_Skills,
+                  Partner_SelectionPost = Partner_Selection,
+                  Past_Rel_BehavPost = Past_Rel_Behav,
+                  Rel_Behav_AttitPost = Rel_Behav_Attit,
+                  Healthy_Rel_SkillsRPre = Healthy_Rel_Skills_Before,
+                  Partner_SelectionRPre = Partner_Selection_Before,
+                  Past_Rel_BehavRPre = Past_Rel_Behav_Before,
+                  Rel_Behav_AttitRPre = Rel_Behav_Attit_Before) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnic_Code, 
+                  Race_Dichotomous,
+                  Education_3cat,
+                  Education_collapsed,
+                  Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Number_Attended,
+                  Dosage,
+                  Gender,
+                  Divorced_Dichotomous,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::gather(key = var,
+                  value = Score,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
+    dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
+    dplyr::arrange(ID, Domain, Time) %>% 
+    dplyr::mutate(Time = factor(Time, 
+                                levels = c("RPre", "Post"))) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+
+```{r}
+Jail_clean_longlong
+```
+
+# Using Collapsed Reasonse Options: Creating Long long Dataset 2 for MLM over TIme
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+Jail_clean_longlong2 <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    dplyr::rename(Healthy_Rel_SkillsPost = Healthy_Rel_Skills.3,
+                  Partner_SelectionPost = Partner_Selection.3,
+                  Past_Rel_BehavPost = Past_Rel_Behav.3,
+                  Rel_Behav_AttitPost = Rel_Behav_Attit.3,
+                  Healthy_Rel_SkillsRPre = Healthy_Rel_Skills_Before.3,
+                  Partner_SelectionRPre = Partner_Selection_Before.3,
+                  Past_Rel_BehavRPre = Past_Rel_Behav_Before.3,
+                  Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnic_Code, 
+                  Race_Dichotomous,
+                  Education_collapsed,
+                  Education_3cat,
+                  Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Number_Attended,
+                  Dosage,
+                  Gender,
+                  Divorced_Dichotomous,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::gather(key = var,
+                  value = Score,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
+    dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
+    dplyr::arrange(ID, Domain, Time) %>% 
+    dplyr::mutate(Time = factor(Time, 
+                                levels = c("RPre", "Post"))) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+
+
+# Using Collapsed Reasonse Options: Creating Long long Dataset 2 for MLM over TIme
+
+* This is the analysis sample: Cases not used in analyses were dropped.
+    * Cases without complete data on predictors were dropped because complete data on predictors is required for analysis.
+    * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
+
+```{r}
+Jail_clean_longlong4 <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample4 == TRUE) %>% 
+    dplyr::rename(Healthy_Rel_SkillsPost = Healthy_Rel_Skills.3,
+                  Partner_SelectionPost = Partner_Selection.3,
+                  Past_Rel_BehavPost = Past_Rel_Behav.3,
+                  Rel_Behav_AttitPost = Rel_Behav_Attit.3,
+                  Healthy_Rel_SkillsRPre = Healthy_Rel_Skills_Before.3,
+                  Partner_SelectionRPre = Partner_Selection_Before.3,
+                  Past_Rel_BehavRPre = Past_Rel_Behav_Before.3,
+                  Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
+    dplyr::select(ID, 
+                  Age, 
+                  `Age (Decades)`,
+                  Age_Groups,
+                  Ethnic_Code, 
+                  Race_Dichotomous,
+                  Education_collapsed,
+                  Education_3cat,
+                  Prior_RshpEducation,
+                  Prior_RshpEducation_collapsed,
+                  FinancialWorry_cat,
+                  Income,
+                  `Income (10K)`,
+                  Number_Attended,
+                  Dosage,
+                  Gender,
+                  Divorced_Dichotomous,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::gather(key = var,
+                  value = Score,
+                  Healthy_Rel_SkillsRPre,
+                  Partner_SelectionRPre,
+                  Past_Rel_BehavRPre,
+                  Rel_Behav_AttitRPre,
+                  Healthy_Rel_SkillsPost,
+                  Partner_SelectionPost,
+                  Past_Rel_BehavPost,
+                  Rel_Behav_AttitPost) %>% 
+    tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
+    dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
+    dplyr::arrange(ID, Domain, Time) %>% 
+    dplyr::mutate(Time = factor(Time, 
+                                levels = c("RPre", "Post"))) %>% 
+    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    dplyr::mutate(Income_10K = `Income (10K)`)
+```
+
+
+
+# Saving data Set
+```{r}
+save(Jail_clean, file="./Data/Jail_clean.Rda")
+save(Jail_clean_long, file="./Data/Jail_clean_long.Rda")
+save(Jail_clean_long2, file="./Data/Jail_clean_long2.Rda")
+save(Jail_clean_longlong, file="./Data/Jail_clean_longlong.Rda")
+save(Jail_clean_longlong2, file="./Data/Jail_clean_longlong2.Rda")
+save(Jail_clean_longlong4, file="./Data/Jail_clean_longlong4.Rda")
+
+```
+
+
+
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
