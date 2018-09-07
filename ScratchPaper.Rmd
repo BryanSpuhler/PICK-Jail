@@ -310,7 +310,30 @@ Jail_clean %>% dplyr::filter(in.analysis.sample1 == TRUE) %>% furniture::tableF(
 
 ```
 
-    dplyr::mutate(BL_Change = BL_T2 - BL_T1) %>% 
-    dplyr::mutate(VF_Change = VF_After - VF_T1) %>% 
-    dplyr::mutate(Control_Change = Control_T2 - Control_T1) %>% 
+   
+```{r}
+dplyr::glimpse(Jail_clean)
+```
 
+```{r}
+Jail_clean %>%
+    dplyr::filter(in.analysis.sample3 == FALSE) %>%
+    dplyr::filter(Missing.preds == 1) %>%
+    dplyr::select(at.least.one.change.score,
+                  Age, 
+                  Ethnicity, 
+                  Education,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Gender,
+                  PWB_Summed2,
+                  WAI,
+                  Married_Dich) %>%
+
+    furniture::table1(na.rm = FALSE,
+                      digits = 2,
+                      # splitby = ~ in.analysis.sample1,
+                      test = TRUE) %>% pander::pander()
+
+
+```
