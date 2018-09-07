@@ -554,23 +554,23 @@ Jail_clean %>%
 * We can use Table 1 from the Furniture package to quickly identify who was missing for categorical variables.
 
 ```{r}
-# Jail_clean %>%
-#     dplyr::filter(in.analysis.sample3 == FALSE) %>%
-#     dplyr::filter(Missing.preds == 1) %>%
-#     dplyr::select(at.least.one.change.score,
-#                   Age,
-#                   Ethnicity,
-#                   Education,
-#                   RelEd_Dich,
-#                   FinancialWorry_cat,
-#                   Gender,
-#                   Div_Dich,
-#                   Married_Dich) %>%
-# 
-#     furniture::table1(na.rm = FALSE,
-#                       digits = 2,
-#                       #splitby = ~ in.analysis.sample1,
-#                       test = TRUE) %>% pander::pander()
+Jail_clean %>%
+    dplyr::filter(in.analysis.sample3 == FALSE) %>%
+    dplyr::filter(Missing.preds == 1) %>%
+    dplyr::select(at.least.one.change.score,
+                  Age,
+                  Ethnicity,
+                  Education,
+                  RelEd_Dich,
+                  FinancialWorry_cat,
+                  Gender,
+                  Div_Dich,
+                  Married_Dich) %>%
+
+    furniture::table1(na.rm = FALSE,
+                      digits = 2,
+                      #splitby = ~ in.analysis.sample1,
+                      test = TRUE) %>% pander::pander()
 
 
 ```

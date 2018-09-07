@@ -5,7 +5,7 @@ install.packages(c("sem", "semdiag", "semPlot", "semTools",
                    "lavaanPlot", "lavaan.survey", "Amelia", "brew",
                    "brewdata", "commonmark", "devtools", "ggpubr",
                    "ggjoy", "ggrepel", "ggridges", "ggplotgui", "mice",
-                   "stargazer", "pander", "WRS2"))
+                   "stargazer", "pander", "WRS2", "ltm", "Amelia"))
 library("devtools")
 devtools::install_github("tysonstanley/furniture")
 # then check for package updates
