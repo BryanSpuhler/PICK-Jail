@@ -1208,42 +1208,36 @@ Jail_clean_longlong2 <- Jail_clean %>%
                   Age, 
                   `Age (Decades)`,
                   Age_Groups,
-                  Ethnic_Code, 
-                  Race_Dichotomous,
+                  Ethnicity, 
+                  Ethnicity_Dich,
                   Education_collapsed,
                   Education_3cat,
-                  Prior_RshpEducation,
-                  Prior_RshpEducation_collapsed,
+                  RelationshipEducation,
+                  RelEd_Dich,
                   FinancialWorry_cat,
                   Income,
                   `Income (10K)`,
-                  Number_Attended,
-                  Dosage,
                   Gender,
-                  Divorced_Dichotomous,
-                  Healthy_Rel_SkillsRPre,
-                  Partner_SelectionRPre,
-                  Past_Rel_BehavRPre,
-                  Rel_Behav_AttitRPre,
-                  Healthy_Rel_SkillsPost,
-                  Partner_SelectionPost,
-                  Past_Rel_BehavPost,
-                  Rel_Behav_AttitPost) %>% 
+                  Div_Dich,
+                  BL_T1,
+                  VF_T1,
+                  Control_T1,
+                  BL_T2,
+                  VF_After,
+                  Control_T2) %>% 
     tidyr::gather(key = var,
                   value = Score,
-                  Healthy_Rel_SkillsRPre,
-                  Partner_SelectionRPre,
-                  Past_Rel_BehavRPre,
-                  Rel_Behav_AttitRPre,
-                  Healthy_Rel_SkillsPost,
-                  Partner_SelectionPost,
-                  Past_Rel_BehavPost,
-                  Rel_Behav_AttitPost) %>% 
+                  BL_T1,
+                  VF_T1,
+                  Control_T1,
+                  BL_T2,
+                  VF_After,
+                  Control_T2) %>% 
     tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
     dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
     dplyr::arrange(ID, Domain, Time) %>% 
     dplyr::mutate(Time = factor(Time, 
-                                levels = c("RPre", "Post"))) %>% 
+                                levels = c("Pre", "Post"))) %>% 
     dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
     dplyr::mutate(Income_10K = `Income (10K)`)
 ```
@@ -1257,56 +1251,50 @@ Jail_clean_longlong2 <- Jail_clean %>%
     * Cases missing all outcomes were dropped. Cases with at least one outcome can be used in analyses.
 
 ```{r}
-PICK_clean_longlong4 <- PICK_clean %>% 
-    dplyr::filter(in.analysis.sample4 == TRUE) %>% 
-    dplyr::rename(Healthy_Rel_SkillsPost = Healthy_Rel_Skills.3,
-                  Partner_SelectionPost = Partner_Selection.3,
-                  Past_Rel_BehavPost = Past_Rel_Behav.3,
-                  Rel_Behav_AttitPost = Rel_Behav_Attit.3,
-                  Healthy_Rel_SkillsRPre = Healthy_Rel_Skills_Before.3,
-                  Partner_SelectionRPre = Partner_Selection_Before.3,
-                  Past_Rel_BehavRPre = Past_Rel_Behav_Before.3,
-                  Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
+Jail_clean_longlong4 <- Jail_clean %>% 
+    dplyr::filter(in.analysis.sample3 == TRUE) %>% 
+    # dplyr::rename(Healthy_Rel_SkillsPost = Healthy_Rel_Skills.3,
+    #               Partner_SelectionPost = Partner_Selection.3,
+    #               Past_Rel_BehavPost = Past_Rel_Behav.3,
+    #               Rel_Behav_AttitPost = Rel_Behav_Attit.3,
+    #               Healthy_Rel_SkillsRPre = Healthy_Rel_Skills_Before.3,
+    #               Partner_SelectionRPre = Partner_Selection_Before.3,
+    #               Past_Rel_BehavRPre = Past_Rel_Behav_Before.3,
+    #               Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
     dplyr::select(ID, 
                   Age, 
                   `Age (Decades)`,
                   Age_Groups,
-                  Ethnic_Code, 
-                  Race_Dichotomous,
+                  Ethnicity, 
+                  Ethnicity_Dich,
                   Education_collapsed,
                   Education_3cat,
-                  Prior_RshpEducation,
-                  Prior_RshpEducation_collapsed,
+                  RelationshipEducation,
+                  RelEd_Dich,
                   FinancialWorry_cat,
                   Income,
                   `Income (10K)`,
-                  Number_Attended,
-                  Dosage,
                   Gender,
-                  Divorced_Dichotomous,
-                  Healthy_Rel_SkillsRPre,
-                  Partner_SelectionRPre,
-                  Past_Rel_BehavRPre,
-                  Rel_Behav_AttitRPre,
-                  Healthy_Rel_SkillsPost,
-                  Partner_SelectionPost,
-                  Past_Rel_BehavPost,
-                  Rel_Behav_AttitPost) %>% 
+                  Div_Dich,
+                  BL_T1,
+                  VF_T1,
+                  Control_T1,
+                  BL_T2,
+                  VF_After,
+                  Control_T2) %>% 
     tidyr::gather(key = var,
                   value = Score,
-                  Healthy_Rel_SkillsRPre,
-                  Partner_SelectionRPre,
-                  Past_Rel_BehavRPre,
-                  Rel_Behav_AttitRPre,
-                  Healthy_Rel_SkillsPost,
-                  Partner_SelectionPost,
-                  Past_Rel_BehavPost,
-                  Rel_Behav_AttitPost) %>% 
+                  BL_T1,
+                  VF_T1,
+                  Control_T1,
+                  BL_T2,
+                  VF_After,
+                  Control_T2) %>% 
     tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
     dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
     dplyr::arrange(ID, Domain, Time) %>% 
     dplyr::mutate(Time = factor(Time, 
-                                levels = c("RPre", "Post"))) %>% 
+                                levels = c("Pre", "Post"))) %>% 
     dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
     dplyr::mutate(Income_10K = `Income (10K)`)
 ```
@@ -1315,12 +1303,12 @@ PICK_clean_longlong4 <- PICK_clean %>%
 
 # Saving data Set
 ```{r}
-save(PICK_clean, file="./Data/PICK_clean.Rda")
-save(PICK_clean_long, file="./Data/PICK_clean_long.Rda")
-save(PICK_clean_long2, file="./Data/PICK_clean_long2.Rda")
-save(PICK_clean_longlong, file="./Data/PICK_clean_longlong.Rda")
-save(PICK_clean_longlong2, file="./Data/PICK_clean_longlong2.Rda")
-save(PICK_clean_longlong4, file="./Data/PICK_clean_longlong4.Rda")
+save(Jail_clean, file="./Data/Jail_clean.Rda")
+save(Jail_clean_long, file="./Data/Jail_clean_long.Rda")
+save(Jail_clean_long2, file="./Data/Jail_clean_long2.Rda")
+save(Jail_clean_longlong, file="./Data/Jail_clean_longlong.Rda")
+save(Jail_clean_longlong2, file="./Data/Jail_clean_longlong2.Rda")
+save(Jail_clean_longlong4, file="./Data/Jail_clean_longlong4.Rda")
 
 ```
 
