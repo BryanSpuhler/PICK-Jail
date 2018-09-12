@@ -152,8 +152,8 @@ Jail_clean <- Jail_raw %>%
                                                          "Often, Almost all the time"))) %>% 
     
     
-    dplyr::mutate(`Income (10K)` = Income/10000) %>% 
-    dplyr::mutate(`Age (Decades)` = Age/10) %>% 
+    dplyr::mutate(Income10K = Income/10000) %>% 
+    dplyr::mutate(AgeDecades = Age/10) %>% 
     
 # Recoding outcomes at item-level: 5 Text responses to 5 numeric
     
@@ -355,7 +355,7 @@ Jail_clean <- Jail_raw %>%
                   RelEd_Dich,
                   FinancialWorry_cat,
                   Gender,
-                  #PWB_Summed2,
+                  PWB_Summed2,
                   WAI,
                   Div_Dich,
                   Married_Dich
@@ -581,7 +581,7 @@ Jail_clean %>%
 Jail_clean %>% 
     dplyr::filter(in.analysis.sample1 == FALSE) %>% 
     dplyr::filter(Missing.preds == 1) %>% 
-    furniture::tableF(`Age (Decades)`)
+    furniture::tableF(AgeDecades)
 
 ```
 
@@ -594,7 +594,7 @@ Jail_clean %>%
 
 ```{r}
 Jail_clean %>% 
-    furniture::tableF(`Age (Decades)`)
+    furniture::tableF(AgeDecades)
 
 Jail_clean %>% 
     furniture::tableF(Age)
@@ -638,7 +638,7 @@ Jail_clean %>%
     furniture::tableF(Income)
 
 Jail_clean %>% 
-    furniture::tableF(`Income (10K)`)
+    furniture::tableF(Income10K)
 ```
 
 
@@ -723,12 +723,12 @@ Jail_clean %>%
 
 
 
-* Age (Decades)
+* Age in Decades
 
 ```{r}
 Jail_clean %>% 
     dplyr::filter(in.analysis.sample1 == TRUE) %>% 
-    furniture::tableF(`Age (Decades)`)
+    furniture::tableF(AgeDecades)
 ```
 
 
@@ -813,7 +813,7 @@ Jail_clean %>%
 ```{r}
 Jail_clean %>% 
     dplyr::filter(in.analysis.sample1 == TRUE) %>% 
-    furniture::tableF(`Income (10K)`)
+    furniture::tableF(Income10K)
 
 
 ```
@@ -1052,7 +1052,7 @@ Jail_clean_long <- Jail_clean %>%
     dplyr::filter(in.analysis.sample1 == TRUE) %>% 
     dplyr::select(ID, 
                   Age, 
-                  `Age (Decades)`,
+                  AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
@@ -1062,7 +1062,7 @@ Jail_clean_long <- Jail_clean %>%
                   RelEd_Dich,
                   FinancialWorry_cat,
                   Income,
-                  `Income (10K)`,
+                  Income10K,
                   Gender,
                   Div_Dich,
                   BL_Change,
@@ -1075,8 +1075,8 @@ Jail_clean_long <- Jail_clean %>%
                   Control_Change) %>% 
     dplyr::mutate_at(vars(ID, var), factor) %>% 
     dplyr::arrange(ID, var) %>% 
-    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`)
+    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    #dplyr::mutate(Income_10K = `Income (10K)`)
 ```
 
 
@@ -1095,7 +1095,7 @@ Jail_clean_long2 <- Jail_clean %>%
     dplyr::filter(in.analysis.sample2 == TRUE) %>% 
     dplyr::select(ID, 
                   Age, 
-                  `Age (Decades)`,
+                  AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
@@ -1105,7 +1105,7 @@ Jail_clean_long2 <- Jail_clean %>%
                   RelEd_Dich,
                   FinancialWorry_cat,
                   Income,
-                  `Income (10K)`,
+                  Income10K,
                   Gender,
                   Div_Dich,
                   BL_Change,
@@ -1118,8 +1118,8 @@ Jail_clean_long2 <- Jail_clean %>%
                   Control_Change) %>% 
     dplyr::mutate_at(vars(ID, var), factor) %>% 
     dplyr::arrange(ID, var) %>% 
-    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`)
+    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    #dplyr::mutate(Income_10K = `Income (10K)`)
 ```
 
 ```{r}
@@ -1146,7 +1146,7 @@ Jail_clean_longlong <- Jail_clean %>%
     #               Rel_Behav_AttitRPre = Rel_Behav_Attit_Before) %>% 
     dplyr::select(ID, 
                   Age, 
-                  `Age (Decades)`,
+                  AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
@@ -1156,7 +1156,7 @@ Jail_clean_longlong <- Jail_clean %>%
                   RelEd_Dich,
                   FinancialWorry_cat,
                   Income,
-                  `Income (10K)`,
+                  Income10K,
                   Gender,
                   Div_Dich,
                   BL_T1,
@@ -1178,8 +1178,8 @@ Jail_clean_longlong <- Jail_clean %>%
     dplyr::arrange(ID, Domain, Time) %>% 
     dplyr::mutate(Time = factor(Time, 
                                 levels = c("Pre", "Post"))) %>% 
-    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`)
+    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    #dplyr::mutate(Income_10K = `Income (10K)`)
 ```
 
 
@@ -1206,7 +1206,7 @@ Jail_clean_longlong2 <- Jail_clean %>%
     #               Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
     dplyr::select(ID, 
                   Age, 
-                  `Age (Decades)`,
+                  AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
@@ -1216,7 +1216,7 @@ Jail_clean_longlong2 <- Jail_clean %>%
                   RelEd_Dich,
                   FinancialWorry_cat,
                   Income,
-                  `Income (10K)`,
+                  Income10K,
                   Gender,
                   Div_Dich,
                   BL_T1,
@@ -1238,8 +1238,8 @@ Jail_clean_longlong2 <- Jail_clean %>%
     dplyr::arrange(ID, Domain, Time) %>% 
     dplyr::mutate(Time = factor(Time, 
                                 levels = c("Pre", "Post"))) %>% 
-    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`)
+    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    #dplyr::mutate(Income_10K = `Income (10K)`)
 ```
 
 
@@ -1263,7 +1263,7 @@ Jail_clean_longlong4 <- Jail_clean %>%
     #               Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
     dplyr::select(ID, 
                   Age, 
-                  `Age (Decades)`,
+                  AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
@@ -1273,7 +1273,7 @@ Jail_clean_longlong4 <- Jail_clean %>%
                   RelEd_Dich,
                   FinancialWorry_cat,
                   Income,
-                  `Income (10K)`,
+                  Income10K,
                   Gender,
                   Div_Dich,
                   BL_T1,
@@ -1295,8 +1295,8 @@ Jail_clean_longlong4 <- Jail_clean %>%
     dplyr::arrange(ID, Domain, Time) %>% 
     dplyr::mutate(Time = factor(Time, 
                                 levels = c("Pre", "Post"))) %>% 
-    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`)
+    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
+    #dplyr::mutate(Income_10K = `Income (10K)`)
 ```
 
 
