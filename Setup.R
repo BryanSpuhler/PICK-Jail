@@ -9,3 +9,7 @@ install.packages(c("sem", "semdiag", "semPlot", "semTools",
 library("devtools")
 devtools::install_github("tysonstanley/furniture")
 # then check for package updates
+
+
+library("devtools")
+devtools::install_github("hadley/tidyverse")

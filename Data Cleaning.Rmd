@@ -153,7 +153,7 @@ Jail_clean <- Jail_raw %>%
     
     
     dplyr::mutate(Income10K = Income/10000) %>% 
-    dplyr::mutate(AgeDecades = Age/10) %>% 
+    #dplyr::mutate(AgeDecades = Age/10) %>% 
     
 # Recoding outcomes at item-level: 5 Text responses to 5 numeric
     
@@ -582,10 +582,10 @@ Jail_clean %>%
 #### Missing only one: continuous
 
 ```{r}
-Jail_clean %>% 
-    dplyr::filter(in.analysis.sample1 == FALSE) %>% 
-    dplyr::filter(Missing.preds == 1) %>% 
-    furniture::tableF(AgeDecades)
+#Jail_clean %>% 
+    #dplyr::filter(in.analysis.sample1 == FALSE) %>% 
+    #dplyr::filter(Missing.preds == 1) %>% 
+    #furniture::tableF(AgeDecades)
 
 ```
 
@@ -597,8 +597,8 @@ Jail_clean %>%
 ## Age
 
 ```{r}
-Jail_clean %>% 
-    furniture::tableF(AgeDecades)
+#Jail_clean %>% 
+    #furniture::tableF(AgeDecades)
 
 Jail_clean %>% 
     furniture::tableF(Age)
@@ -730,9 +730,9 @@ Jail_clean %>%
 * Age in Decades
 
 ```{r}
-Jail_clean %>% 
-    dplyr::filter(in.analysis.sample1 == TRUE) %>% 
-    furniture::tableF(AgeDecades)
+#Jail_clean %>% 
+    #dplyr::filter(in.analysis.sample1 == TRUE) %>% 
+    #furniture::tableF(AgeDecades)
 ```
 
 
@@ -1056,7 +1056,7 @@ Jail_clean_long <- Jail_clean %>%
     dplyr::filter(in.analysis.sample1 == TRUE) %>% 
     dplyr::select(ID, 
                   Age, 
-                  AgeDecades,
+                  #AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
@@ -1099,7 +1099,7 @@ Jail_clean_long2 <- Jail_clean %>%
     dplyr::filter(in.analysis.sample2 == TRUE) %>% 
     dplyr::select(ID, 
                   Age, 
-                  AgeDecades,
+                  #AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
@@ -1150,7 +1150,7 @@ Jail_clean_longlong <- Jail_clean %>%
     #               Rel_Behav_AttitRPre = Rel_Behav_Attit_Before) %>% 
     dplyr::select(ID, 
                   Age, 
-                  AgeDecades,
+                  #AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
@@ -1210,7 +1210,7 @@ Jail_clean_longlong2 <- Jail_clean %>%
     #               Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
     dplyr::select(ID, 
                   Age, 
-                  AgeDecades,
+                  #AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
@@ -1267,7 +1267,7 @@ Jail_clean_longlong4 <- Jail_clean %>%
     #               Rel_Behav_AttitRPre = Rel_Behav_Attit_Before.3) %>% 
     dplyr::select(ID, 
                   Age, 
-                  AgeDecades,
+                  #AgeDecades,
                   Age_Groups,
                   Ethnicity, 
                   Ethnicity_Dich,
