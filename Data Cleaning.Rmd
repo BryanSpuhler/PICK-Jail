@@ -1076,7 +1076,7 @@ Jail_clean_long <- Jail_clean %>%
                   value = Change.Score,
                   BL_Change,
                   VF_Change,
-                  Control_Change) %>% 
+                  Control_Change) %>%
     dplyr::mutate_at(vars(ID, var), factor) %>% 
     dplyr::arrange(ID, var) %>% 
     #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
