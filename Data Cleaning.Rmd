@@ -391,6 +391,10 @@ Jail_clean <- Jail_raw %>%
     
 ```
 
+```{r}
+rm(Jail_raw)
+```
+
 
 ## Sample Sizes
 
