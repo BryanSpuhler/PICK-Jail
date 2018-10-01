@@ -1078,9 +1078,8 @@ Jail_clean_long <- Jail_clean %>%
                   VF_Change,
                   Control_Change) %>%
     dplyr::mutate_at(vars(ID, var), factor) %>% 
-    dplyr::arrange(ID, var) %>% 
-    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    #dplyr::mutate(Income_10K = `Income (10K)`)
+    dplyr::arrange(ID, var) 
+
 ```
 
 
@@ -1121,9 +1120,7 @@ Jail_clean_long2 <- Jail_clean %>%
                   VF_Change,
                   Control_Change) %>% 
     dplyr::mutate_at(vars(ID, var), factor) %>% 
-    dplyr::arrange(ID, var) %>% 
-    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    #dplyr::mutate(Income_10K = `Income (10K)`)
+    dplyr::arrange(ID, var) 
 ```
 
 ```{r}
@@ -1177,13 +1174,12 @@ Jail_clean_longlong <- Jail_clean %>%
                   BL_T2,
                   VF_After,
                   Control_T2) %>% 
-    tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
-    dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
-    dplyr::arrange(ID, Domain, Time) %>% 
-    dplyr::mutate(Time = factor(Time, 
-                                levels = c("Pre", "Post"))) %>% 
-    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    #dplyr::mutate(Income_10K = `Income (10K)`)
+     tidyr::separate(col = var, into = c("Domain","Time"), sep = -4) %>%  
+    dplyr::mutate_at(vars(ID,Domain, Time), factor) %>%
+    dplyr::arrange(ID, Domain, Time) %>%
+    dplyr::mutate(Time = factor(Time,
+                                levels = c("Pre", "Post"))) 
+
 ```
 
 
@@ -1241,9 +1237,8 @@ Jail_clean_longlong2 <- Jail_clean %>%
     dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
     dplyr::arrange(ID, Domain, Time) %>% 
     dplyr::mutate(Time = factor(Time, 
-                                levels = c("Pre", "Post"))) %>% 
-    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    #dplyr::mutate(Income_10K = `Income (10K)`)
+                                levels = c("Pre", "Post"))) 
+
 ```
 
 
@@ -1298,9 +1293,8 @@ Jail_clean_longlong4 <- Jail_clean %>%
     dplyr::mutate_at(vars(ID,Domain, Time), factor) %>% 
     dplyr::arrange(ID, Domain, Time) %>% 
     dplyr::mutate(Time = factor(Time, 
-                                levels = c("Pre", "Post"))) %>% 
-    #dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    #dplyr::mutate(Income_10K = `Income (10K)`)
+                                levels = c("Pre", "Post"))) 
+
 ```
 
 
