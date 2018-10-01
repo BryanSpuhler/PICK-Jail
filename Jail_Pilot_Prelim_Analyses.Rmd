@@ -176,21 +176,15 @@ format_chi = function(chi){
 
 ```{r, include=FALSE}
 Jail_clean %>% 
-        dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`) %>% 
     dplyr::mutate(in.analysis.sample1 = factor(in.analysis.sample1)) %>% 
-    dplyr::select(Age, `Age (Decades)`, Age_Groups, 
+    dplyr::select(Age, Age_Groups, 
                   Gender,
                   Ethnicity, Ethnicity_Dich,
-                  TotalChildren,
-                  Education, Ed_Recoded,
-                  Education_Old, Education_collapsed, Education_3cat,
-                  Religious,
-                  Income, `Income (10K)`,
-                  Div_Dich,
-                  Married_Dich,
-                  FinancialWorry, FinancialWorry_cat,
-                  RelEd_Dich,
+                  Education_collapsed, Education_3cat,
+                  RelationshipEducation, RelEd_Dich, 
+                  Income, Income10K,
+                  Gender, Div_Dich,
+                  FinancialWorry_cat,
                   PeopleCareAbtMe, TalkToSomeoneITrust, FreedomAndFlexibility,
                   JailAffectsRelationChildren, JailAffectsRelationPartner,
                   HappyPerson, SatisfiedLife, SatisfiedRelationship, FeelLovedWanted, RelationshipsFullComplete,
@@ -235,21 +229,15 @@ Jail_clean %>%
 
 ```{r, echo=FALSE}
 Jail_clean %>% 
-    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`) %>% 
-    dplyr::mutate(`In Analysis Sample` = factor(in.analysis.sample1)) %>% 
-    dplyr::select(Age, `Age (Decades)`, Age_Groups, 
+    dplyr::mutate(`In Analysis Sample1` = factor(in.analysis.sample1)) %>% 
+    dplyr::select(Age, Age_Groups, 
                   Gender,
                   Ethnicity, Ethnicity_Dich,
-                  TotalChildren,
-                  Education, Ed_Recoded,
-                  Education_Old, Education_collapsed, Education_3cat,
-                  Religious,
-                  Income, `Income (10K)`,
-                  Div_Dich,
-                  Married_Dich,
-                  FinancialWorry, FinancialWorry_cat,
-                  RelEd_Dich,
+                  Education_collapsed, Education_3cat,
+                  RelationshipEducation, RelEd_Dich, 
+                  Income, Income10K,
+                  Gender, Div_Dich,
+                  FinancialWorry_cat,
                   
                   PWB_Summed2, PWB_Dich,   
                   WAI, BL_T1, BL_T2, VF_T1, VF_Before, VF_After, Control_T1, Control_T2, 
@@ -273,11 +261,10 @@ Jail_clean %>%
                   PaceRelationshipSafe_Before.n, PaceRelationshipSafe_After.n, SpotWarningSigns_Before.n,
                   SpotWarningSigns_After.n, WeighProsCons_Before.n, WeighProsCons_After.n, 
                   KeepPartnerDoing_T2.n, ForbidPartnerTalking_T2.n, WouldNotStay_T2.n,
-                  
-                  `In Analysis Sample1`) %>% 
+                  `In Analysis Sample1`)  %>% 
     furniture::table1(na.rm = FALSE,
                       digits = 2,
-                      splitby = ~ `In Analysis Sample`,
+                      splitby = ~ `In Analysis Sample1`,
                       test = TRUE)
 ```
 
@@ -289,21 +276,15 @@ Jail_clean %>%
 
 
 Jail_clean %>% 
-    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`) %>% 
     dplyr::mutate(`In Larger Analysis Sample` = factor(in.analysis.sample3)) %>% 
-    dplyr::select(Age, `Age (Decades)`, Age_Groups, 
+    dplyr::select(Age, Age_Groups, 
                   Gender,
                   Ethnicity, Ethnicity_Dich,
-                  TotalChildren,
-                  Education, Ed_Recoded,
-                  Education_Old, Education_collapsed, Education_3cat,
-                  Religious,
-                  Income, `Income (10K)`,
-                  Div_Dich,
-                  Married_Dich,
-                  FinancialWorry, FinancialWorry_cat,
-                  RelEd_Dich,
+                  Education_collapsed, Education_3cat,
+                  RelationshipEducation, RelEd_Dich, 
+                  Income, Income10K,
+                  Gender, Div_Dich,
+                  FinancialWorry_cat,
                   
                   PWB_Summed2, PWB_Dich,   
                   WAI, BL_T1, BL_T2, VF_T1, VF_Before, VF_After, Control_T1, Control_T2, 
@@ -342,30 +323,12 @@ Jail_clean %>%
 
 ```{r, echo=FALSE}
 Jail_clean %>% 
-    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`) %>% 
     dplyr::mutate(`In Analysis Sample3` = factor(in.analysis.sample3)) %>% 
-    dplyr::select(Age_Decades,
-                  Age_Groups,
-                  Ethnic_Code, 
-                  Education_3cat,
-                  # Income,
-                  Income_10K,
-                  Gender,
-                  Divorced_Dichotomous,
-                  FinancialWorry_cat,
-                  # Prior_RshpEducation,
-                  Prior_RshpEducation_collapsed,
-                  Number_Attended,
-                  Dosage,
-                  Healthy_Rel_Skills_Before,
-                  Partner_Selection_Before,
-                  Past_Rel_Behav_Before,
-                  Rel_Behav_Attit_Before,
-                  Healthy_Rel_Skills,
-                  Partner_Selection,
-                  Past_Rel_Behav,
-                  Rel_Behav_Attit,
+    dplyr::select(Age, 
+                  Income, Income10K,
+                  PWB_Summed2, PWB_Dich,   
+                  WAI, BL_T1, BL_T2, VF_T1, VF_Before, VF_After, Control_T1, Control_T2, 
+                  BL_Change, VF_Change, Control_Change,
                   
                   `In Analysis Sample3`) %>% 
     furniture::table1(na.rm = FALSE,
@@ -384,39 +347,34 @@ Jail_clean %>%
 
 ```{r, echo=FALSE}
 Jail_clean %>% 
-    dplyr::mutate(Age_Decades = `Age (Decades)`) %>% 
-    dplyr::mutate(Income_10K = `Income (10K)`) %>% 
     dplyr::mutate(`In Analysis Sample3` = factor(in.analysis.sample3)) %>% 
-    dplyr::select(Age_Decades,
-                  Age_Groups,
-                  Ethnic_Code, 
-                  Education_3cat,
-                  # Income,
-                  Income_10K,
+    dplyr::select(Age, Age_Groups, 
                   Gender,
-                  Divorced_Dichotomous,
+                  Ethnicity, Ethnicity_Dich,
+                  Education_collapsed, Education_3cat,
+                  RelationshipEducation, RelEd_Dich, 
+                  Income, Income10K,
+                  Gender, Div_Dich,
                   FinancialWorry_cat,
-                  # Prior_RshpEducation,
-                  Prior_RshpEducation_collapsed,
-                  Number_Attended,
-                  Dosage,
                   
-
-                  Healthy_Rel_Before.3c, Communicate_Before.3c, ConflictManagement_Before.3c,
-                  Healthy_Rel.3c, Communicate.3c, ConflictManagement.3c,
+                  PeopleCareAbtMe, TalkToSomeoneITrust, FreedomAndFlexibility, FreeAndFlex_Coded,
+                  JailAffectsRelationChildren, JailAffectsRelationPartner,
                   
-                  RightPartner_Before.3c, LearnPartner_Before.3c, 
-                  PaceRelationship_Before.3c, WarningSigns_Before.3c,
-                  RightPartner.3c, LearnPartner.3c, 
-                  PaceRelationship.3c, WarningSigns.3c,
+                  WouldRecommend, InformationUseful, AnsweredQuestionsWell, 
+                  ManagedTimeWell, AppreciatesMe, CaresLikesMe, Trustfacilitator, 
                   
-                  LearnedGrowingUp_Before.3c, PastRelationships_Before.3c, 
-                  GetAlongParents_Before.3c, FriendshipsAreLike_Before.3c,
-                  LearnedGrowingUp.3c, PastRelationships.3c, 
-                  GetAlongParents.3c, FriendshipsAreLike.3c,
+                   
+                  HappyPerson.n, SatisfiedLife.n, SatisfiedRelationship.n, 
+                  FeelLovedWanted.n, RelationshipsFullComplete.n,
                   
-                  Fights_Before.3c, FeelingsHurt_Before.3c, RightandWrong_Before.3c,
-                  Fights.3c, FeelingsHurt.3c, RightandWrong.3c,
+                  LoveSufficientMarriage_T1.n, LoveEnoughSustain_T1.n, FoolWalksAway_T1.n, 
+                  PaceRelationshipSafe.n, SpotWarningSigns.n, WeighProsCons.n, 
+                  KeepPartnerDoing_T1.n, ForbidPartnerTalking_T1.n, WouldNotStay_T1.n, 
+                  
+                  LoveSufficientMarriage_T2.n, LoveEnoughSustain_T2.n, FoolWalksAway_T2.n,
+                  PaceRelationshipSafe_Before.n, PaceRelationshipSafe_After.n, SpotWarningSigns_Before.n,
+                  SpotWarningSigns_After.n, WeighProsCons_Before.n, WeighProsCons_After.n, 
+                  KeepPartnerDoing_T2.n, ForbidPartnerTalking_T2.n, WouldNotStay_T2.n,
                   
                   `In Analysis Sample3`) %>% 
     furniture::table1(na.rm = FALSE,
@@ -431,40 +389,30 @@ Jail_clean %>%
 
 ### Outcomes
 
-#### Retrospective Pre-Program Item-Level
+#### Pre-Program Item-Level
 
 &nbsp;
 
 ```{r, echo = FALSE}
 Jail_clean_outcome_pre_corr <- Jail_clean %>% 
     dplyr::filter(in.analysis.sample3 == TRUE) %>%
-    dplyr::select(Healthy_Rel_Before.n, Communicate_Before.n, ConflictManagement_Before.n,
-
-                  RightPartner_Before.n, LearnPartner_Before.n, 
-                  PaceRelationship_Before.n, WarningSigns_Before.n,
-
-                  LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
-                  GetAlongParents_Before.n, FriendshipsAreLike_Before.n,
-
-                  Fights_Before.n, FeelingsHurt_Before.n, RightandWrong_Before.n) %>% 
-    dplyr::mutate(`Healthy Rel` = Healthy_Rel_Before.n) %>% 
-    dplyr::mutate(`Commun.` = Communicate_Before.n) %>% 
-    dplyr::mutate(`Confl. Man.` = ConflictManagement_Before.n) %>% 
-    dplyr::mutate(`Right Partner` = RightPartner_Before.n) %>% 
-    dplyr::mutate(`Learn Partner` =  LearnPartner_Before.n) %>% 
-    dplyr::mutate(`Pace Rel.` = PaceRelationship_Before.n) %>% 
-    dplyr::mutate(`Warn Signs` = WarningSigns_Before.n) %>% 
-    dplyr::mutate(Learned = LearnedGrowingUp_Before.n) %>% 
-    dplyr::mutate(`Past Rel` = PastRelationships_Before.n) %>% 
-    dplyr::mutate(`Get Along Par.` = GetAlongParents_Before.n) %>% 
-    dplyr::mutate(`Friendships` = FriendshipsAreLike_Before.n) %>% 
-    dplyr::mutate(`Fights` = Fights_Before.n) %>% 
-    dplyr::mutate(`Feelings` = FeelingsHurt_Before.n) %>% 
-    dplyr::mutate(`Right Wrong` = RightandWrong_Before.n) %>% 
-    dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
-                  `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
-                  Learned, `Past Rel`, `Get Along Par.`, `Friendships`,
-                  `Fights`, `Feelings`, `Right Wrong`) %>% 
+    dplyr::select(LoveSufficientMarriage_T1.n, LoveEnoughSustain_T1.n, FoolWalksAway_T1.n, 
+                  PaceRelationshipSafe.n, SpotWarningSigns.n, WeighProsCons.n, 
+                  KeepPartnerDoing_T1.n, ForbidPartnerTalking_T1.n, WouldNotStay_T1.n) %>% 
+    
+    dplyr::mutate(`LoveSuffMar` = LoveSufficientMarriage_T1.n) %>% 
+    dplyr::mutate(`LoveSust` = LoveEnoughSustain_T1.n) %>% 
+    dplyr::mutate(`FoolsWalk` = FoolWalksAway_T1.n) %>% 
+    dplyr::mutate(`PaceSafe` = PaceRelationshipSafe.n) %>% 
+    dplyr::mutate(`SpotWarn` =  SpotWarningSigns.n) %>% 
+    dplyr::mutate(`WeighPros` = WeighProsCons.n) %>% 
+    dplyr::mutate(`KeepDoing` = KeepPartnerDoing_T1.n) %>% 
+    dplyr::mutate(`ForbidPart` = ForbidPartnerTalking_T1.n) %>% 
+    dplyr::mutate(`WouldNotStay` = WouldNotStay_T1.n) %>% 
+     
+    dplyr::select(`LoveSuffMar`, `LoveSust`, `FoolsWalk`,
+                  `PaceSafe`, `SpotWarn`, `WeighPros`, `KeepDoing`,
+                  `ForbidPart`, `WouldNotStay`) %>% 
     # cor(use = "pairwise.complete.obs")
     as.matrix() %>% 
     Hmisc::rcorr(type = "pearson")
@@ -492,7 +440,7 @@ corrplot::corrplot(Jail_clean_outcome_pre_corr$r,
          diag=FALSE, 
          number.cex= 0.7,
          tl.cex = .7,
-         title = "Retrospective Pre-Program Item Correlations",
+         title = "Pre-Program Item Correlations",
                              mar=c(0,0,1,0))
 
 
@@ -508,33 +456,23 @@ corrplot::corrplot(Jail_clean_outcome_pre_corr$r,
 ```{r, echo = FALSE}
 Jail_clean_outcome_post_corr <- Jail_clean %>% 
     dplyr::filter(in.analysis.sample3 == TRUE) %>%
-    dplyr::select(Healthy_Rel.n, Communicate.n, ConflictManagement.n,
-
-                  RightPartner.n, LearnPartner.n, 
-                  PaceRelationship.n, WarningSigns.n,
-
-                  LearnedGrowingUp.n, PastRelationships.n, 
-                  GetAlongParents.n, FriendshipsAreLike.n,
-
-                  Fights.n, FeelingsHurt.n, RightandWrong.n) %>% 
-    dplyr::mutate(`Healthy Rel` = Healthy_Rel.n) %>% 
-    dplyr::mutate(`Commun.` = Communicate.n) %>% 
-    dplyr::mutate(`Confl. Man.` = ConflictManagement.n) %>% 
-    dplyr::mutate(`Right Partner` = RightPartner.n) %>% 
-    dplyr::mutate(`Learn Partner` =  LearnPartner.n) %>% 
-    dplyr::mutate(`Pace Rel.` = PaceRelationship.n) %>% 
-    dplyr::mutate(`Warn Signs` = WarningSigns.n) %>% 
-    dplyr::mutate(`Learned` = LearnedGrowingUp.n) %>% 
-    dplyr::mutate(`Past Rel` = PastRelationships.n) %>% 
-    dplyr::mutate(`Get Along Par.` = GetAlongParents.n) %>% 
-    dplyr::mutate(`Friendships` = FriendshipsAreLike.n) %>% 
-    dplyr::mutate(`Fights` = Fights.n) %>% 
-    dplyr::mutate(`Feelings` = FeelingsHurt.n) %>% 
-    dplyr::mutate(`Right Wrong` = RightandWrong.n) %>% 
-    dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
-                  `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
-                  `Learned`, `Past Rel`, `Get Along Par.`, `Friendships`,
-                  `Fights`, `Feelings`, `Right Wrong`) %>% 
+    dplyr::select(LoveSufficientMarriage_T2.n, LoveEnoughSustain_T2.n, FoolWalksAway_T2.n, 
+                  PaceRelationshipSafe_After.n, SpotWarningSigns_After.n, WeighProsCons_After.n, 
+                  KeepPartnerDoing_T2.n, ForbidPartnerTalking_T2.n, WouldNotStay_T2.n) %>% 
+    
+    dplyr::mutate(`LoveSuffMar` = LoveSufficientMarriage_T2.n) %>% 
+    dplyr::mutate(`LoveSust` = LoveEnoughSustain_T2.n) %>% 
+    dplyr::mutate(`FoolsWalk` = FoolWalksAway_T2.n) %>% 
+    dplyr::mutate(`PaceSafe` = PaceRelationshipSafe_After.n) %>% 
+    dplyr::mutate(`SpotWarn` =  SpotWarningSigns_After.n) %>% 
+    dplyr::mutate(`WeighPros` = WeighProsCons_After.n) %>% 
+    dplyr::mutate(`KeepDoing` = KeepPartnerDoing_T2.n) %>% 
+    dplyr::mutate(`ForbidPart` = ForbidPartnerTalking_T2.n) %>% 
+    dplyr::mutate(`WouldNotStay` = WouldNotStay_T2.n) %>% 
+     
+    dplyr::select(`LoveSuffMar`, `LoveSust`, `FoolsWalk`,
+                  `PaceSafe`, `SpotWarn`, `WeighPros`, `KeepDoing`,
+                  `ForbidPart`, `WouldNotStay`) %>% 
     # cor(use = "pairwise.complete.obs")
     as.matrix() %>% 
     Hmisc::rcorr(type = "pearson")
@@ -568,94 +506,60 @@ corrplot::corrplot(Jail_clean_outcome_post_corr$r,
 
 \newpage
 
-#### Retrospective Pre-Program to Post-Program Item-Level
+#### Pre-Program to Post-Program Item-Level
 
 &nbsp;
 
 ```{r, echo = FALSE}
 Jail_clean_outcome_prepost_corr <- Jail_clean %>% 
     dplyr::filter(in.analysis.sample3 == TRUE) %>%
-    dplyr::select(Healthy_Rel_Before.n, Communicate_Before.n, ConflictManagement_Before.n,
-
-                  RightPartner_Before.n, LearnPartner_Before.n, 
-                  PaceRelationship_Before.n, WarningSigns_Before.n,
-
-                  LearnedGrowingUp_Before.n, PastRelationships_Before.n, 
-                  GetAlongParents_Before.n, FriendshipsAreLike_Before.n,
-
-                  Fights_Before.n, FeelingsHurt_Before.n, RightandWrong_Before.n,
-                  
-                  Healthy_Rel.n, Communicate.n, ConflictManagement.n,
-
-                  RightPartner.n, LearnPartner.n, 
-                  PaceRelationship.n, WarningSigns.n,
-
-                  LearnedGrowingUp.n, PastRelationships.n, 
-                  GetAlongParents.n, FriendshipsAreLike.n,
-
-                  Fights.n, FeelingsHurt.n, RightandWrong.n) %>% 
-    dplyr::mutate(`Healthy Rel RPre` = Healthy_Rel_Before.n) %>% 
-    dplyr::mutate(`Commun. RPre` = Communicate_Before.n) %>% 
-    dplyr::mutate(`Confl. Man. RPre` = ConflictManagement_Before.n) %>% 
-    dplyr::mutate(`Right Partner RPre` = RightPartner_Before.n) %>% 
-    dplyr::mutate(`Learn Partner RPre` =  LearnPartner_Before.n) %>% 
-    dplyr::mutate(`Pace Rel. RPre` = PaceRelationship_Before.n) %>% 
-    dplyr::mutate(`Warn Signs RPre` = WarningSigns_Before.n) %>% 
-    dplyr::mutate(`Learned RPre` = LearnedGrowingUp_Before.n) %>% 
-    dplyr::mutate(`Past Rel RPre` = PastRelationships_Before.n) %>% 
-    dplyr::mutate(`Get Along Par. RPre` = GetAlongParents_Before.n) %>% 
-    dplyr::mutate(`Friendships RPre` = FriendshipsAreLike_Before.n) %>% 
-    dplyr::mutate(`Fights RPre` = Fights_Before.n) %>% 
-    dplyr::mutate(`Feelings RPre` = FeelingsHurt_Before.n) %>% 
-    dplyr::mutate(`Right Wrong RPre` = RightandWrong_Before.n) %>%
+    dplyr::select(LoveSufficientMarriage_T1.n, LoveEnoughSustain_T1.n, FoolWalksAway_T1.n, 
+                  PaceRelationshipSafe.n, SpotWarningSigns.n, WeighProsCons.n, 
+                  KeepPartnerDoing_T1.n, ForbidPartnerTalking_T1.n, WouldNotStay_T1.n,
+                  LoveSufficientMarriage_T2.n, LoveEnoughSustain_T2.n, FoolWalksAway_T2.n, 
+                  PaceRelationshipSafe_After.n, SpotWarningSigns_After.n, WeighProsCons_After.n, 
+                  KeepPartnerDoing_T2.n, ForbidPartnerTalking_T2.n, WouldNotStay_T2.n) %>% 
     
-    dplyr::mutate(`Healthy Rel Post` = Healthy_Rel.n) %>% 
-    dplyr::mutate(`Commun. Post` = Communicate.n) %>% 
-    dplyr::mutate(`Confl. Man. Post` = ConflictManagement.n) %>% 
-    dplyr::mutate(`Right Partner Post` = RightPartner.n) %>% 
-    dplyr::mutate(`Learn Partner Post` =  LearnPartner.n) %>% 
-    dplyr::mutate(`Pace Rel. Post` = PaceRelationship.n) %>% 
-    dplyr::mutate(`Warn Signs Post` = WarningSigns.n) %>% 
-    dplyr::mutate(`Learned Post` = LearnedGrowingUp.n) %>% 
-    dplyr::mutate(`Past Rel Post` = PastRelationships.n) %>% 
-    dplyr::mutate(`Get Along Par. Post` = GetAlongParents.n) %>% 
-    dplyr::mutate(`Friendships Post` = FriendshipsAreLike.n) %>% 
-    dplyr::mutate(`Fights Post` = Fights.n) %>% 
-    dplyr::mutate(`Feelings Post` = FeelingsHurt.n) %>% 
-    dplyr::mutate(`Right Wrong Post` = RightandWrong.n) %>% 
+    dplyr::mutate(`LoveSuffMarPre` = LoveSufficientMarriage_T1.n) %>% 
+    dplyr::mutate(`LoveSustPre` = LoveEnoughSustain_T1.n) %>% 
+    dplyr::mutate(`FoolsWalkPre` = FoolWalksAway_T1.n) %>% 
+    dplyr::mutate(`PaceSafePre` = PaceRelationshipSafe.n) %>% 
+    dplyr::mutate(`SpotWarnPre` =  SpotWarningSigns.n) %>% 
+    dplyr::mutate(`WeighProsPre` = WeighProsCons.n) %>% 
+    dplyr::mutate(`KeepDoingPre` = KeepPartnerDoing_T1.n) %>% 
+    dplyr::mutate(`ForbidPartPre` = ForbidPartnerTalking_T1.n) %>% 
+    dplyr::mutate(`WouldNotStayPre` = WouldNotStay_T1.n) %>%
+    
+    dplyr::mutate(`LoveSuffMarPost` = LoveSufficientMarriage_T2.n) %>% 
+    dplyr::mutate(`LoveSustPost` = LoveEnoughSustain_T2.n) %>% 
+    dplyr::mutate(`FoolsWalkPost` = FoolWalksAway_T2.n) %>% 
+    dplyr::mutate(`PaceSafePost` = PaceRelationshipSafe_After.n) %>% 
+    dplyr::mutate(`SpotWarnPost` =  SpotWarningSigns_After.n) %>% 
+    dplyr::mutate(`WeighProsPost` = WeighProsCons_After.n) %>% 
+    dplyr::mutate(`KeepDoingPost` = KeepPartnerDoing_T2.n) %>% 
+    dplyr::mutate(`ForbidPartPost` = ForbidPartnerTalking_T2.n) %>% 
+    dplyr::mutate(`WouldNotStayPost` = WouldNotStay_T2.n) %>% 
 
     
-    dplyr::select(`Healthy Rel RPre`, `Commun. RPre`, `Confl. Man. RPre`,
-                  `Right Partner RPre`, `Learn Partner RPre`, 
-                  `Pace Rel. RPre`, `Warn Signs RPre`,
-                  `Learned RPre`, `Past Rel RPre`, 
-                  `Get Along Par. RPre`, `Friendships RPre`,
-                  `Fights RPre`, `Feelings RPre`, `Right Wrong RPre`,
+    dplyr::select(`LoveSuffMarPre`, `LoveSustPre`, `FoolsWalkPre`,
+                  `PaceSafePre`, `SpotWarnPre`, 
+                  `WeighProsPre`, `KeepDoingPre`, `ForbidPartPre`,
+                  `WouldNotStayPre`,
                   
-                  `Healthy Rel Post`, `Commun. Post`, `Confl. Man. Post`,
-                  `Right Partner Post`, `Learn Partner Post`, 
-                  `Pace Rel. Post`, `Warn Signs Post`,
-                  `Learned Post`, `Past Rel Post`, 
-                  `Get Along Par. Post`, `Friendships Post`,
-                  `Fights Post`, `Feelings Post`, `Right Wrong Post`) %>% 
+                  `LoveSuffMarPost`, `LoveSustPost`, `FoolsWalkPost`,
+                  `PaceSafePost`, `SpotWarnPost`, 
+                  `WeighProsPost`, `KeepDoingPost`, `ForbidPartPost`,
+                  `WouldNotStayPost`) %>% 
     # cor(use = "pairwise.complete.obs")
     as.matrix() %>% 
     Hmisc::rcorr(type = "pearson")
-    # corrr::correlate() %>% 
-    # corrr::focus(`Healthy Rel Post`, `Commun. Post`, `Confl. Man. Post`,
-    #               `Right Partner Post`, `Learn Partner Post`, 
-    #               `Pace Rel. Post`, `Warn Signs Post`,
-    #               `Learned Post`, `Past Rel Post`, 
-    #               `Get Along Par. Post`, `Friendships Post`,
-    #               `Fights Post`, `Feelings Post`, `Right Wrong Post`)
-
 
 
 # p.mat.pre <- cor.mtest(Jail_clean_outcome_pre_corr)
 
 col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
 
-corrplot::corrplot(Jail_clean_outcome_prepost_corr$r[1:14,14:28],
+corrplot::corrplot(Jail_clean_outcome_prepost_corr$r[1:9,9:18],
                    number.digits = 2,
          method="color", 
          col=col(200),  
@@ -664,14 +568,14 @@ corrplot::corrplot(Jail_clean_outcome_prepost_corr$r[1:14,14:28],
          addCoef.col = "black", # Add coefficient of correlation
          tl.col="black", tl.srt=45, #Text label color and rotation
          # Combine with significance
-         p.mat = Jail_clean_outcome_prepost_corr$P[1:14,14:28], 
+         p.mat = Jail_clean_outcome_prepost_corr$P[1:9,9:18], 
          sig.level = 0.05, 
          insig = "blank", 
          # hide correlation coefficient on the principal diagonal
          diag=FALSE, 
          number.cex= 0.6,
          tl.cex = .5,
-         title = "Retrospective Pre-Post Program Item Correlations",
+         title = "Pre-Post Program Item Correlations",
                              mar=c(0,0,1.7,0))
 
 
@@ -688,151 +592,145 @@ corrplot::corrplot(Jail_clean_outcome_prepost_corr$r[1:14,14:28],
 
 
 ```{r, echo = FALSE}
-Jail_clean_outcome_change_corr <- Jail_clean %>% 
-    dplyr::filter(in.analysis.sample == TRUE) %>%
-    dplyr::select(Healthy_Rel_Change, Communicate_Change, ConflictManagement_Change,
-
-                  RightPartner_Change, LearnPartner_Change, 
-                  PaceRelationship_Change, WarningSigns_Change,
-
-                  LearnedGrowingUp_Change, PastRelationships_Change, 
-                  GetAlongParents_Change, FriendshipsAreLike_Change,
-
-                  Fights_Change, FeelingsHurt_Change, RightandWrong_Change) %>% 
-    dplyr::mutate(`Healthy Rel` = Healthy_Rel_Change) %>% 
-    dplyr::mutate(`Commun.` = Communicate_Change) %>% 
-    dplyr::mutate(`Confl. Man.` = ConflictManagement_Change) %>% 
-    dplyr::mutate(`Right Partner` = RightPartner_Change) %>% 
-    dplyr::mutate(`Learn Partner` =  LearnPartner_Change) %>% 
-    dplyr::mutate(`Pace Rel.` = PaceRelationship_Change) %>% 
-    dplyr::mutate(`Warn Signs` = WarningSigns_Change) %>% 
-    dplyr::mutate(`Learned` = LearnedGrowingUp_Change) %>% 
-    dplyr::mutate(`Past Rel` = PastRelationships_Change) %>% 
-    dplyr::mutate(`Get Along Par.` = GetAlongParents_Change) %>% 
-    dplyr::mutate(`Friendships` = FriendshipsAreLike_Change) %>% 
-    dplyr::mutate(`Fights` = Fights_Change) %>% 
-    dplyr::mutate(`Feelings` = FeelingsHurt_Change) %>% 
-    dplyr::mutate(`Right Wrong` = RightandWrong_Change) %>% 
-    dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
-                  `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
-                  `Learned`, `Past Rel`, `Get Along Par.`, `Friendships`,
-                  `Fights`, `Feelings`, `Right Wrong`) %>% 
-    # cor(use = "pairwise.complete.obs")
-    as.matrix() %>% 
-    Hmisc::rcorr(type = "pearson")
-
-
-# p.mat <- cor.mtest(cor(Jail_clean_outcome_change_corr))
-
-col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
-
-
-corrplot::corrplot(Jail_clean_outcome_change_corr$r, 
-         method="color", 
-         col=col(200),  
-         type="upper", 
-         # order="hclust", 
-         addCoef.col = "black", # Add coefficient of correlation
-         tl.col="black", tl.srt=45, #Text label color and rotation
-         # Combine with significance
-         p.mat = Jail_clean_outcome_change_corr$P, 
-         sig.level = 0.05, insig = "blank", 
-         # hide correlation coefficient on the principal diagonal
-         diag=FALSE, 
-         number.cex= 0.7,
-         tl.cex = .7,
-         title = "Change Score Item Correlations",
-                             mar=c(0,0,1,0))
+# Jail_clean_outcome_change_corr <- Jail_clean %>% 
+#     dplyr::filter(in.analysis.sample == TRUE) %>%
+#     dplyr::select(Healthy_Rel_Change, Communicate_Change, ConflictManagement_Change,
+# 
+#                   RightPartner_Change, LearnPartner_Change, 
+#                   PaceRelationship_Change, WarningSigns_Change,
+# 
+#                   LearnedGrowingUp_Change, PastRelationships_Change, 
+#                   GetAlongParents_Change, FriendshipsAreLike_Change,
+# 
+#                   Fights_Change, FeelingsHurt_Change, RightandWrong_Change) %>% 
+#     dplyr::mutate(`Healthy Rel` = Healthy_Rel_Change) %>% 
+#     dplyr::mutate(`Commun.` = Communicate_Change) %>% 
+#     dplyr::mutate(`Confl. Man.` = ConflictManagement_Change) %>% 
+#     dplyr::mutate(`Right Partner` = RightPartner_Change) %>% 
+#     dplyr::mutate(`Learn Partner` =  LearnPartner_Change) %>% 
+#     dplyr::mutate(`Pace Rel.` = PaceRelationship_Change) %>% 
+#     dplyr::mutate(`Warn Signs` = WarningSigns_Change) %>% 
+#     dplyr::mutate(`Learned` = LearnedGrowingUp_Change) %>% 
+#     dplyr::mutate(`Past Rel` = PastRelationships_Change) %>% 
+#     dplyr::mutate(`Get Along Par.` = GetAlongParents_Change) %>% 
+#     dplyr::mutate(`Friendships` = FriendshipsAreLike_Change) %>% 
+#     dplyr::mutate(`Fights` = Fights_Change) %>% 
+#     dplyr::mutate(`Feelings` = FeelingsHurt_Change) %>% 
+#     dplyr::mutate(`Right Wrong` = RightandWrong_Change) %>% 
+#     dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
+#                   `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
+#                   `Learned`, `Past Rel`, `Get Along Par.`, `Friendships`,
+#                   `Fights`, `Feelings`, `Right Wrong`) %>% 
+#     # cor(use = "pairwise.complete.obs")
+#     as.matrix() %>% 
+#     Hmisc::rcorr(type = "pearson")
+# 
+# 
+# # p.mat <- cor.mtest(cor(Jail_clean_outcome_change_corr))
+# 
+# col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+# 
+# 
+# corrplot::corrplot(Jail_clean_outcome_change_corr$r, 
+#          method="color", 
+#          col=col(200),  
+#          type="upper", 
+#          # order="hclust", 
+#          addCoef.col = "black", # Add coefficient of correlation
+#          tl.col="black", tl.srt=45, #Text label color and rotation
+#          # Combine with significance
+#          p.mat = Jail_clean_outcome_change_corr$P, 
+#          sig.level = 0.05, insig = "blank", 
+#          # hide correlation coefficient on the principal diagonal
+#          diag=FALSE, 
+#          number.cex= 0.7,
+#          tl.cex = .7,
+#          title = "Change Score Item Correlations",
+#                              mar=c(0,0,1,0))
 ```
 
 \newpage
 
 
 
-
-#### Categorical Retrospective Pre-Program Item-Level
+#### Categorical Pre-Program Item-Level
 
 &nbsp;
 
 ```{r, echo = FALSE}
-Jail_clean_outcome_pre.cat_corr <- Jail_clean %>% 
-    dplyr::filter(in.analysis.sample3 == TRUE) %>%
-    dplyr::select(Healthy_Rel_Before.3c, Communicate_Before.3c, ConflictManagement_Before.3c,
-
-                  RightPartner_Before.3c, LearnPartner_Before.3c, 
-                  PaceRelationship_Before.3c, WarningSigns_Before.3c,
-
-                  LearnedGrowingUp_Before.3c, PastRelationships_Before.3c, 
-                  GetAlongParents_Before.3c, FriendshipsAreLike_Before.3c,
-
-                  Fights_Before.3c, FeelingsHurt_Before.3c, RightandWrong_Before.3c) %>% 
-    dplyr::mutate(`Healthy Rel` = Healthy_Rel_Before.3c) %>% 
-    dplyr::mutate(`Commun.` = Communicate_Before.3c) %>% 
-    dplyr::mutate(`Confl. Man.` = ConflictManagement_Before.3c) %>% 
-    dplyr::mutate(`Right Partner` = RightPartner_Before.3c) %>% 
-    dplyr::mutate(`Learn Partner` =  LearnPartner_Before.3c) %>% 
-    dplyr::mutate(`Pace Rel.` = PaceRelationship_Before.3c) %>% 
-    dplyr::mutate(`Warn Signs` = WarningSigns_Before.3c) %>% 
-    dplyr::mutate(Learned = LearnedGrowingUp_Before.3c) %>% 
-    dplyr::mutate(`Past Rel` = PastRelationships_Before.3c) %>% 
-    dplyr::mutate(`Get Along Par.` = GetAlongParents_Before.3c) %>% 
-    dplyr::mutate(`Friendships` = FriendshipsAreLike_Before.3c) %>% 
-    dplyr::mutate(`Fights` = Fights_Before.3c) %>% 
-    dplyr::mutate(`Feelings` = FeelingsHurt_Before.3c) %>% 
-    dplyr::mutate(`Right Wrong` = RightandWrong_Before.3c) %>% 
-    dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
-                  `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
-                  Learned, `Past Rel`, `Get Along Par.`, `Friendships`,
-                  `Fights`, `Feelings`, `Right Wrong`) %>% 
-    # cor(use = "pairwise.complete.obs")
-    # as.matrix() %>% 
-    # Hmisc::rcorr(type = "pearson")
-    psych::polychoric()
-
-
-
-# p.mat.pre <- cor.mtest(Jail_clean_outcome_pre_corr)
-
-col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
-
-
-corrplot::corrplot(Jail_clean_outcome_pre.cat_corr$r, 
-         method="color", 
-         col=col(200),  
-         type="upper", 
-         # order="hclust", 
-         addCoef.col = "black", # Add coefficient of correlation
-         tl.col="black", tl.srt=45, #Text label color and rotation
-         # Combine with significance
-         p.mat = Jail_clean_outcome_pre.cat_corr$P, 
-         sig.level = 0.05, 
-         insig = "blank", 
-         # hide correlation coefficient on the principal diagonal
-         diag=FALSE, 
-         number.cex= 0.7,
-         tl.cex = .7,
-         title = "Retrospective Pre-Program Item Correlations",
-                             mar=c(0,0,1,0))
+# Jail_clean_outcome_pre.cat_corr <- Jail_clean %>% 
+#     dplyr::filter(in.analysis.sample3 == TRUE) %>%
+#     dplyr::select(Healthy_Rel_Before.3c, Communicate_Before.3c, ConflictManagement_Before.3c,
+# 
+#                   RightPartner_Before.3c, LearnPartner_Before.3c, 
+#                   PaceRelationship_Before.3c, WarningSigns_Before.3c,
+# 
+#                   LearnedGrowingUp_Before.3c, PastRelationships_Before.3c, 
+#                   GetAlongParents_Before.3c, FriendshipsAreLike_Before.3c,
+# 
+#                   Fights_Before.3c, FeelingsHurt_Before.3c, RightandWrong_Before.3c) %>% 
+#     dplyr::mutate(`Healthy Rel` = Healthy_Rel_Before.3c) %>% 
+#     dplyr::mutate(`Commun.` = Communicate_Before.3c) %>% 
+#     dplyr::mutate(`Confl. Man.` = ConflictManagement_Before.3c) %>% 
+#     dplyr::mutate(`Right Partner` = RightPartner_Before.3c) %>% 
+#     dplyr::mutate(`Learn Partner` =  LearnPartner_Before.3c) %>% 
+#     dplyr::mutate(`Pace Rel.` = PaceRelationship_Before.3c) %>% 
+#     dplyr::mutate(`Warn Signs` = WarningSigns_Before.3c) %>% 
+#     dplyr::mutate(Learned = LearnedGrowingUp_Before.3c) %>% 
+#     dplyr::mutate(`Past Rel` = PastRelationships_Before.3c) %>% 
+#     dplyr::mutate(`Get Along Par.` = GetAlongParents_Before.3c) %>% 
+#     dplyr::mutate(`Friendships` = FriendshipsAreLike_Before.3c) %>% 
+#     dplyr::mutate(`Fights` = Fights_Before.3c) %>% 
+#     dplyr::mutate(`Feelings` = FeelingsHurt_Before.3c) %>% 
+#     dplyr::mutate(`Right Wrong` = RightandWrong_Before.3c) %>% 
+#     dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
+#                   `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
+#                   Learned, `Past Rel`, `Get Along Par.`, `Friendships`,
+#                   `Fights`, `Feelings`, `Right Wrong`) %>% 
+#     # cor(use = "pairwise.complete.obs")
+#     # as.matrix() %>% 
+#     # Hmisc::rcorr(type = "pearson")
+#     psych::polychoric()
+# 
+# 
+# 
+# # p.mat.pre <- cor.mtest(Jail_clean_outcome_pre_corr)
+# 
+# col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+# 
+# 
+# corrplot::corrplot(Jail_clean_outcome_pre.cat_corr$r, 
+#          method="color", 
+#          col=col(200),  
+#          type="upper", 
+#          # order="hclust", 
+#          addCoef.col = "black", # Add coefficient of correlation
+#          tl.col="black", tl.srt=45, #Text label color and rotation
+#          # Combine with significance
+#          p.mat = Jail_clean_outcome_pre.cat_corr$P, 
+#          sig.level = 0.05, 
+#          insig = "blank", 
+#          # hide correlation coefficient on the principal diagonal
+#          diag=FALSE, 
+#          number.cex= 0.7,
+#          tl.cex = .7,
+#          title = "Retrospective Pre-Program Item Correlations",
+#                              mar=c(0,0,1,0))
 
 
 
 ```
 
 * Items
-    1.  Healthy Rel
-    2.  Commun.
-    3.  Confl. Man.
-    4.  Right Partner
-    5.  Learn Partner
-    6.  Pace Rel.
-    7.  Warn Signs
-    8.  Learned
-    9.  Past Rel
-    10.  Get Along Par.
-    11.  Friendships
-    12.  Fights
-    13.  Feelings
-    14.  Right Wrong
+    1.  LoveSuffMar
+    2.  LoveSust
+    3.  FoolsWalk
+    4.  PaceSafe
+    5.  SpotWarn
+    6.  WeightPros
+    7.  KeepDoing
+    8.  ForbidPart
+    9.  WouldNotStay
 
 \newpage
 
@@ -841,85 +739,80 @@ corrplot::corrplot(Jail_clean_outcome_pre.cat_corr$r,
 &nbsp;
 
 ```{r, echo = FALSE}
-Jail_clean_outcome_post.cat_corr <- Jail_clean %>% 
-    dplyr::filter(in.analysis.sample3 == TRUE) %>%
-    dplyr::select(Healthy_Rel.3c, Communicate.3c, ConflictManagement.3c,
-
-                  RightPartner.3c, LearnPartner.3c, 
-                  PaceRelationship.3c, WarningSigns.3c,
-
-                  LearnedGrowingUp.3c, PastRelationships.3c, 
-                  GetAlongParents.3c, FriendshipsAreLike.3c,
-
-                  Fights.3c, FeelingsHurt.3c, RightandWrong.3c) %>% 
-    dplyr::mutate(`Healthy Rel` = Healthy_Rel.3c) %>% 
-    dplyr::mutate(`Commun.` = Communicate.3c) %>% 
-    dplyr::mutate(`Confl. Man.` = ConflictManagement.3c) %>% 
-    dplyr::mutate(`Right Partner` = RightPartner.3c) %>% 
-    dplyr::mutate(`Learn Partner` =  LearnPartner.3c) %>% 
-    dplyr::mutate(`Pace Rel.` = PaceRelationship.3c) %>% 
-    dplyr::mutate(`Warn Signs` = WarningSigns.3c) %>% 
-    dplyr::mutate(`Learned` = LearnedGrowingUp.3c) %>% 
-    dplyr::mutate(`Past Rel` = PastRelationships.3c) %>% 
-    dplyr::mutate(`Get Along Par.` = GetAlongParents.3c) %>% 
-    dplyr::mutate(`Friendships` = FriendshipsAreLike.3c) %>% 
-    dplyr::mutate(`Fights` = Fights.3c) %>% 
-    dplyr::mutate(`Feelings` = FeelingsHurt.3c) %>% 
-    dplyr::mutate(`Right Wrong` = RightandWrong.3c) %>% 
-    dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
-                  `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
-                  `Learned`, `Past Rel`, `Get Along Par.`, `Friendships`,
-                  `Fights`, `Feelings`, `Right Wrong`) %>% 
-    # cor(use = "pairwise.complete.obs")
-    # as.matrix() %>% 
-    # Hmisc::rcorr(type = "pearson")
-psych::polychoric()
-
-
-
-
-# p.mat.post <- cor.mtest(Jail_clean_outcome_post_corr)
-
-col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
-
-
-corrplot::corrplot(Jail_clean_outcome_post.cat_corr$r, 
-         method="color", 
-         col=col(200),
-         type="upper", 
-         # order="hclust", 
-         addCoef.col = "black", # Add coefficient of correlation
-         tl.col="black", tl.srt=45, #Text label color and rotation
-         # Combine with significance
-         p.mat = Jail_clean_outcome_post.cat_corr$P,
-         sig.level = 0.05, insig = "blank", 
-         # hide correlation coefficient on the principal diagonal
-         diag=FALSE, 
-         number.cex= 0.7,
-         tl.cex = .7,
-         title = "Post-Program Item Correlations",
-                             mar=c(0,0,1,0))
+# Jail_clean_outcome_post.cat_corr <- Jail_clean %>% 
+#     dplyr::filter(in.analysis.sample3 == TRUE) %>%
+#     dplyr::select(Healthy_Rel.3c, Communicate.3c, ConflictManagement.3c,
+# 
+#                   RightPartner.3c, LearnPartner.3c, 
+#                   PaceRelationship.3c, WarningSigns.3c,
+# 
+#                   LearnedGrowingUp.3c, PastRelationships.3c, 
+#                   GetAlongParents.3c, FriendshipsAreLike.3c,
+# 
+#                   Fights.3c, FeelingsHurt.3c, RightandWrong.3c) %>% 
+#     dplyr::mutate(`Healthy Rel` = Healthy_Rel.3c) %>% 
+#     dplyr::mutate(`Commun.` = Communicate.3c) %>% 
+#     dplyr::mutate(`Confl. Man.` = ConflictManagement.3c) %>% 
+#     dplyr::mutate(`Right Partner` = RightPartner.3c) %>% 
+#     dplyr::mutate(`Learn Partner` =  LearnPartner.3c) %>% 
+#     dplyr::mutate(`Pace Rel.` = PaceRelationship.3c) %>% 
+#     dplyr::mutate(`Warn Signs` = WarningSigns.3c) %>% 
+#     dplyr::mutate(`Learned` = LearnedGrowingUp.3c) %>% 
+#     dplyr::mutate(`Past Rel` = PastRelationships.3c) %>% 
+#     dplyr::mutate(`Get Along Par.` = GetAlongParents.3c) %>% 
+#     dplyr::mutate(`Friendships` = FriendshipsAreLike.3c) %>% 
+#     dplyr::mutate(`Fights` = Fights.3c) %>% 
+#     dplyr::mutate(`Feelings` = FeelingsHurt.3c) %>% 
+#     dplyr::mutate(`Right Wrong` = RightandWrong.3c) %>% 
+#     dplyr::select(`Healthy Rel`, `Commun.`, `Confl. Man.`,
+#                   `Right Partner`, `Learn Partner`, `Pace Rel.`, `Warn Signs`,
+#                   `Learned`, `Past Rel`, `Get Along Par.`, `Friendships`,
+#                   `Fights`, `Feelings`, `Right Wrong`) %>% 
+#     # cor(use = "pairwise.complete.obs")
+#     # as.matrix() %>% 
+#     # Hmisc::rcorr(type = "pearson")
+# psych::polychoric()
+# 
+# 
+# 
+# 
+# # p.mat.post <- cor.mtest(Jail_clean_outcome_post_corr)
+# 
+# col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+# 
+# 
+# corrplot::corrplot(Jail_clean_outcome_post.cat_corr$r, 
+#          method="color", 
+#          col=col(200),
+#          type="upper", 
+#          # order="hclust", 
+#          addCoef.col = "black", # Add coefficient of correlation
+#          tl.col="black", tl.srt=45, #Text label color and rotation
+#          # Combine with significance
+#          p.mat = Jail_clean_outcome_post.cat_corr$P,
+#          sig.level = 0.05, insig = "blank", 
+#          # hide correlation coefficient on the principal diagonal
+#          diag=FALSE, 
+#          number.cex= 0.7,
+#          tl.cex = .7,
+#          title = "Post-Program Item Correlations",
+#                              mar=c(0,0,1,0))
 ```
 
 * Items
-    1.  Healthy Rel
-    2.  Commun.
-    3.  Confl. Man.
-    4.  Right Partner
-    5.  Learn Partner
-    6.  Pace Rel.
-    7.  Warn Signs
-    8.  Learned
-    9.  Past Rel
-    10.  Get Along Par.
-    11.  Friendships
-    12.  Fights
-    13.  Feelings
-    14.  Right Wrong
+    1.  LoveSuffMar
+    2.  LoveSust
+    3.  FoolsWalk
+    4.  PaceSafe
+    5.  SpotWarn
+    6.  WeightPros
+    7.  KeepDoing
+    8.  ForbidPart
+    9.  WouldNotStay
 
 \newpage
 
-#### Retrospective Pre-Program to Post-Program Item-Level
+#### Pre-Program to Post-Program Item-Level
 
 &nbsp;
 
